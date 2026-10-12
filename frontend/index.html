@@ -1,0 +1,589 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DoS & DDoS | Computer Science Lab Manual</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+    <button class="back-button" id="backButton" aria-label="Back">←</button>
+    <div class="brand">
+        <h1>CSS Lab</h1>
+        <p>• Virtual Network Security Lab • DoS & DDoS Simulation</p>
+    </div>
+    <button class="share-button" id="shareButton">↗ Share</button>
+</header>
+
+<main class="workspace">
+    <section class="viewer">
+        <div class="toolbar">
+            <button id="menuButton" class="tool-button" aria-label="Toggle contents">☰</button>
+            <span class="viewer-label">Experiment Manual</span>
+            <div class="toolbar-actions">
+                <button id="prevButton" class="circle-button" aria-label="Previous resource">‹</button>
+                <span id="pageNumber">1 / 6</span>
+                <button id="nextButton" class="circle-button next" aria-label="Next resource">›</button>
+            </div>
+        </div>
+
+        <div class="lesson-content" id="lessonContent">
+            
+                
+<article class="lesson active" id="aim" data-title="Aim & Objectives">
+    
+
+    <h2>Aim and Objectives</h2>
+
+    <p>
+        <strong>Aim:</strong> To simulate and analyze normal network traffic,
+        Denial of Service (DoS), and Distributed Denial of Service (DDoS)
+        scenarios to understand how data packets travel from client computers
+        to a server and how excessive traffic affects server capacity and
+        availability.
+    </p>
+
+    <h3>Learning Objectives</h3>
+
+    <ol>
+        <li>
+            Understand how legitimate network traffic travels from a client
+            computer to a destination server.
+        </li>
+        <li>
+            Understand server capacity and how incoming requests are accepted
+            or dropped.
+        </li>
+        <li>
+            Compare normal traffic, single-source DoS traffic, and
+            multiple-source DDoS traffic.
+        </li>
+        <li>
+            Visualize traffic flow and observe the results of different
+            traffic scenarios using the interactive simulation.
+        </li>
+        <li>
+            Understand how excessive traffic can overload a server and affect
+            service availability.
+        </li>
+        <li>
+            Learn about basic mitigation techniques, such as rate limiting
+            and traffic filtering.
+        </li>
+    </ol>
+
+    <div class="info-box">
+        <strong>Expected outcome:</strong>
+        Successfully simulate different network traffic scenarios, interpret
+        incoming, accepted, and dropped request rates, and explain how
+        excessive traffic can affect server performance and availability.
+    </div>
+</article>
+
+
+           
+<article class="lesson" id="theory" data-title="Theory">
+    <p class="section-label">EXPERIMENT 02</p>
+    <h2>Theory</h2>
+
+    <h3>1. Network Traffic and Server Capacity</h3>
+    <p>
+        Network traffic refers to the data and requests exchanged between
+        devices over a network. In this experiment, a client computer sends
+        requests to a destination server. The server processes incoming
+        requests according to its available capacity, measured in requests
+        per second (req/sec).
+    </p>
+
+    <h3>2. Normal Traffic</h3>
+    <p>
+        Normal traffic consists of legitimate requests sent by users or client
+        devices. These requests travel through the network to the destination
+        server. When the incoming request rate remains within the server's
+        configured capacity, all requests are accepted in this simplified
+        model.
+    </p>
+
+    <h3>3. Denial of Service (DoS)</h3>
+    <p>
+        A Denial of Service (DoS) scenario involves a single simulated source
+        generating excessive requests towards a target server. When legitimate
+        and attack traffic exceed the server's capacity, some requests are
+        dropped. This can reduce the availability of services for legitimate
+        users.
+    </p>
+
+    <h3>4. Distributed Denial of Service (DDoS)</h3>
+    <p>
+        A Distributed Denial of Service (DDoS) scenario involves multiple
+        sources sending requests towards the same target server. Their
+        combined traffic can overwhelm the server's available capacity.
+        Unlike the single-source DoS scenario, the traffic originates from
+        several simulated sources.
+    </p>
+
+    <h3>5. Traffic Flow in the Simulation</h3>
+    <p>
+        The visual simulation represents traffic moving from client devices
+        towards a destination server. In the normal scenario, legitimate
+        traffic travels through the network switch to the server. In the DoS
+        and DDoS scenarios, additional simulated traffic is introduced to
+        demonstrate how the server handles the combined request load.
+    </p>
+
+    <h3>6. Traffic Calculation</h3>
+    <p>
+        The simulation uses the following formulas to calculate the server's
+        response to incoming traffic:
+    </p>
+
+    <div class="formula">
+        Incoming Traffic = Legitimate Traffic + Attack Traffic
+    </div>
+
+    <div class="formula">
+        Accepted Requests = min(Incoming Traffic, Server Capacity)
+    </div>
+
+    <div class="formula">
+        Dropped Requests = Incoming Traffic − Accepted Requests
+    </div>
+
+    <h3>7. Example Calculation</h3>
+    <p>
+        Suppose legitimate traffic is 20 requests/sec, attack traffic is
+        120 requests/sec, and server capacity is 100 requests/sec.
+    </p>
+
+    <div class="formula">
+        Incoming = 20 + 120 = 140 requests/sec
+    </div>
+
+    <div class="formula">
+        Accepted = min(140, 100) = 100 requests/sec
+    </div>
+
+    <div class="formula">
+        Dropped = 140 − 100 = 40 requests/sec
+    </div>
+
+    <div class="info-box">
+        <strong>Observation:</strong>
+        When incoming traffic exceeds the configured server capacity,
+        the model accepts requests up to that capacity and drops the
+        remaining requests. This illustrates how excessive traffic can
+        affect service availability.
+    </div>
+
+    <p class="muted">
+        This is an educational mathematical and visual simulation. It does
+        not transmit real network packets or generate actual DoS/DDoS attacks.
+    </p>
+</article>
+
+           
+<article class="lesson" id="procedure" data-title="Procedure">
+    <p class="section-label">EXPERIMENT 03</p>
+    <h2>Procedure</h2>
+
+    <h3>Steps to Perform the Experiment</h3>
+
+    <ol>
+        <li>
+            Open the Interactive Simulation section of the virtual lab.
+        </li>
+        <li>
+            Enter the legitimate traffic rate and server capacity in
+            requests per second.
+        </li>
+        <li>
+            Select a scenario: Normal, DoS, or DDoS.
+        </li>
+        <li>
+            For DoS, configure the attack request rate. For DDoS, configure
+            the number of simulated sources and the request rate per source.
+        </li>
+        <li>
+            Click <strong>Run Simulation</strong> to execute the selected
+            scenario.
+        </li>
+        <li>
+            Observe the visual representation of traffic travelling from
+            the client or simulated sources towards the destination server.
+        </li>
+        <li>
+            Examine the incoming, accepted, and dropped request rates,
+            along with the server status and capacity.
+        </li>
+        <li>
+            Repeat the experiment with different input values and compare
+            the results for all three scenarios.
+        </li>
+        <li>
+            Complete the assessment to check your understanding of network
+            traffic and server capacity.
+        </li>
+    </ol>
+
+    <div class="info-box">
+        <strong>Suggested starting values:</strong>
+        Set legitimate traffic to 20 requests/sec and server capacity to
+        100 requests/sec. For Normal traffic, the expected result is
+        20 incoming, 20 accepted, and 0 dropped requests per second.
+    </div>
+
+    <h3>Expected Results</h3>
+
+    <ul>
+        <li>
+            <strong>Normal:</strong> When incoming traffic is within capacity,
+            all requests are accepted.
+        </li>
+        <li>
+            <strong>DoS:</strong> Additional traffic from one simulated
+            source may exceed capacity, causing requests to be dropped.
+        </li>
+        <li>
+            <strong>DDoS:</strong> Traffic from multiple simulated sources
+            is combined and may exceed the server's capacity.
+        </li>
+    </ul>
+
+    <p class="muted">
+        Note: This procedure uses a mathematical and visual simulation.
+        It does not generate real attack traffic or transmit actual packets
+        between physical computers.
+    </p>
+</article>
+
+              
+
+
+            
+            <article class="lesson" id="simulation" data-title="Interactive Simulation">
+                
+                <h2>Interactive Simulation</h2>
+                <p>Change the inputs, select a scenario and observe how
+                the traffic load affects the server.</p>
+
+                <div class="input-grid">
+                    <label>Legitimate traffic (req/sec)
+                        <input id="legitimateRate" type="number" min="0"
+                               max="100000" value="20">
+                    </label>
+                    <label>Server capacity (req/sec)
+                        <input id="capacity" type="number" min="1"
+                               max="100000" value="100">
+                    </label>
+                    <label>DoS attack rate (req/sec)
+                        <input id="dosRate" type="number" min="0"
+                               max="100000" value="120">
+                    </label>
+                    <label>DDoS source count
+                        <input id="attackerCount" type="number" min="0"
+                               max="1000" value="5">
+                    </label>
+                    <label>Rate per source (req/sec)
+                        <input id="ratePerSource" type="number" min="0"
+                               max="100000" value="40">
+                    </label>
+                    <label id="protectionLabel">Rate Limit Protection
+                        <span style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+                            <input id="protectionEnabled" type="checkbox" style="width:auto; cursor:pointer;">
+                            <span style="font-size:12px; font-weight:normal;">Enable per-source filter</span>
+                        </span>
+                    </label>
+                    <label id="perSourceLimitGroup" style="display:none;">Per-source limit (req/sec)
+                        <input id="perSourceLimit" type="number" min="0"
+                               max="100000" value="10">
+                    </label>
+                </div>
+
+                <p class="field-heading">Choose a scenario</p>
+                <div class="scenario-buttons">
+                    <button class="scenario active" data-scenario="normal">Normal</button>
+                    <button class="scenario" data-scenario="dos">DoS</button>
+                    <button class="scenario" data-scenario="ddos">DDoS</button>
+                </div>
+
+                <button id="runSimulation" class="primary-button">
+                    Run Simulation
+                </button>
+                <p id="message" class="message" role="status" aria-live="polite">
+                    Ready to run the simulation.
+                </p>
+
+                <div class="result-grid">
+                    <div class="result-card">
+                        <p>Incoming</p>
+                        <strong id="incoming">20</strong>
+                        <small>requests/sec</small>
+                    </div>
+                    <div class="result-card">
+                        <p>Accepted</p>
+                        <strong id="accepted">20</strong>
+                        <small>requests/sec</small>
+                    </div>
+                    <div class="result-card">
+                        <p>Dropped</p>
+                        <strong id="dropped">0</strong>
+                        <small>requests/sec</small>
+                    </div>
+                    <div class="result-card" id="blockedCard">
+                        <p>Blocked</p>
+                        <strong id="blocked">0</strong>
+                        <small>requests/sec</small>
+                    </div>
+                </div>
+
+                <div class="status-line">
+                    <span>Server status</span>
+                    <strong id="status" class="status normal">Normal</strong>
+                </div>
+
+                <div class="chart-row">
+                    <span>Incoming</span>
+                    <div class="bar-track"><div id="incomingBar" class="bar incoming-bar"></div></div>
+                    <strong id="incomingLabel">20</strong>
+                </div>
+                <div class="chart-row">
+                    <span>Accepted</span>
+                    <div class="bar-track"><div id="acceptedBar" class="bar accepted-bar"></div></div>
+                    <strong id="acceptedLabel">20</strong>
+                </div>
+                <div class="chart-row">
+                    <span>Dropped</span>
+                    <div class="bar-track"><div id="droppedBar" class="bar dropped-bar"></div></div>
+                    <strong id="droppedLabel">0</strong>
+                </div>
+                <div class="chart-row" id="blockedChartRow">
+                    <span>Blocked</span>
+                    <div class="bar-track"><div id="blockedBar" class="bar blocked-bar"></div></div>
+                    <strong id="blockedLabel">0</strong>
+                </div>
+
+                <div id="explanation" class="info-box">
+                    All incoming requests fit within the configured capacity.
+                </div>
+                
+<div class="traffic-visualization" id="trafficVisualization" hidden>
+    <div class="traffic-visual-heading">
+        <div>
+            <h3 id="visualTitle">Normal Traffic: Client-to-Server Transfer</h3>
+            <p id="visualDescription">Run the simulation to visualize the traffic flow.</p>
+        </div>
+        <span class="visual-live-label">SIMULATION OUTPUT</span>
+    </div>
+
+    <div class="traffic-topology" id="trafficTopology" aria-live="polite"></div>
+
+    <div class="visual-metrics">
+        <div>
+            <span>Incoming</span>
+            <strong id="visualIncoming">0</strong>
+            <small>requests/sec</small>
+        </div>
+        <div>
+            <span>Accepted</span>
+            <strong id="visualAccepted">0</strong>
+            <small>requests/sec</small>
+        </div>
+        <div>
+            <span>Dropped</span>
+            <strong id="visualDropped">0</strong>
+            <small>requests/sec</small>
+        </div>
+        <div>
+            <span>Blocked</span>
+            <strong id="visualBlocked">0</strong>
+            <small>requests/sec</small>
+        </div>
+        <div>
+            <span>Capacity</span>
+            <strong id="visualCapacity">0</strong>
+            <small>requests/sec</small>
+        </div>
+    </div>
+
+    <p class="visual-status" id="visualStatus" role="status">
+        Run the simulation to see the results.
+    </p>
+</div>
+
+                <p class="muted">Educational simulation only. No real attack
+                traffic is generated. Attack settings are illustrative sample data.</p>
+            </article>
+
+            <article class="lesson" id="assessment" data-title="Assessment">
+                
+                <h2>Assessment</h2>
+                <p>Answer all three questions and submit your responses.</p>
+
+                
+<form id="quizForm">
+    <fieldset>
+        <legend>1. What happens when incoming traffic exceeds server capacity?</legend>
+        <label><input type="radio" name="q1" value="a" required> All requests are accepted</label>
+        <label><input type="radio" name="q1" value="b"> Some requests are dropped</label>
+        <label><input type="radio" name="q1" value="c"> Capacity automatically doubles</label>
+    </fieldset>
+
+    <fieldset>
+        <legend>2. What distinguishes DDoS from a single-source DoS?</legend>
+        <label><input type="radio" name="q2" value="a" required> It never affects capacity</label>
+        <label><input type="radio" name="q2" value="b"> Traffic comes from multiple sources</label>
+        <label><input type="radio" name="q2" value="c"> It always has zero dropped requests</label>
+    </fieldset>
+
+    <fieldset>
+        <legend>3. Incoming traffic is 140 req/sec and capacity is 100 req/sec. How many requests are dropped?</legend>
+        <label><input type="radio" name="q3" value="a" required> 100</label>
+        <label><input type="radio" name="q3" value="b"> 40</label>
+        <label><input type="radio" name="q3" value="c"> 240</label>
+    </fieldset>
+
+    <fieldset>
+        <legend>4. What is normal network traffic?</legend>
+        <label><input type="radio" name="q4" value="a" required> Legitimate requests sent by users or client devices</label>
+        <label><input type="radio" name="q4" value="b"> Traffic generated only by attackers</label>
+        <label><input type="radio" name="q4" value="c"> Traffic that always overloads a server</label>
+    </fieldset>
+
+    <fieldset>
+        <legend>5. In a DoS scenario, how many attack sources are simulated?</legend>
+        <label><input type="radio" name="q5" value="a" required> Multiple independent sources</label>
+        <label><input type="radio" name="q5" value="b"> No attack sources</label>
+        <label><input type="radio" name="q5" value="c"> One attack source</label>
+    </fieldset>
+
+    <fieldset>
+        <legend>6. What does server capacity represent in this experiment?</legend>
+        <label><input type="radio" name="q6" value="a" required> The number of computers in the network</label>
+        <label><input type="radio" name="q6" value="b"> The maximum request rate the model can accept</label>
+        <label><input type="radio" name="q6" value="c"> The number of attack sources</label>
+    </fieldset>
+
+    <fieldset>
+        <legend>7. Legitimate traffic is 30 req/sec, attack traffic is 50 req/sec, and capacity is 100 req/sec. How many requests are accepted?</legend>
+        <label><input type="radio" name="q7" value="a" required> 50</label>
+        <label><input type="radio" name="q7" value="b"> 80</label>
+        <label><input type="radio" name="q7" value="c"> 100</label>
+    </fieldset>
+
+    <fieldset>
+        <legend>8. Five simulated DDoS sources each generate 40 req/sec. What is their combined attack traffic?</legend>
+        <label><input type="radio" name="q8" value="a" required> 45 req/sec</label>
+        <label><input type="radio" name="q8" value="b"> 200 req/sec</label>
+        <label><input type="radio" name="q8" value="c"> 40 req/sec</label>
+    </fieldset>
+
+    <fieldset>
+        <legend>9. What is the purpose of rate limiting?</legend>
+        <label><input type="radio" name="q9" value="a" required> To restrict requests to a configured rate</label>
+        <label><input type="radio" name="q9" value="b"> To increase every request rate without limits</label>
+        <label><input type="radio" name="q9" value="c"> To create more attack sources</label>
+    </fieldset>
+
+    <fieldset>
+        <legend>10. What does the visual simulation demonstrate?</legend>
+        <label><input type="radio" name="q10" value="a" required> Real attacks against an external server</label>
+        <label><input type="radio" name="q10" value="b"> Actual packet transmission between physical computers</label>
+        <label><input type="radio" name="q10" value="c"> A simulated representation of traffic flow and server capacity</label>
+    </fieldset>
+
+    <button class="primary-button" type="submit">Submit Assessment</button>
+</form>
+
+<p id="quizResult" class="message" role="status" aria-live="polite"></p>
+</article>
+
+
+            
+<article class="lesson" id="feedback" data-title="Feedback & References">
+    <p class="section-label">EXPERIMENT 06</p>
+    <h2>Feedback and References</h2>
+
+    <p>
+        Share your experience with this virtual lab. Your feedback can help
+        identify areas for improvement in the content, interface, and simulation.
+    </p>
+
+    <form id="feedbackForm">
+        <label for="rating">How would you rate this experiment?</label>
+        <select id="rating" name="rating" required>
+            <option value="">Choose a rating</option>
+            <option value="5">5 — Very useful</option>
+            <option value="4">4 — Useful</option>
+            <option value="3">3 — Average</option>
+            <option value="2">2 — Needs improvement</option>
+            <option value="1">1 — Not useful</option>
+        </select>
+
+        <label for="feedbackCategory">What would you like to give feedback about?</label>
+        <select id="feedbackCategory" name="feedbackCategory">
+            <option value="overall">Overall experience</option>
+            <option value="content">Theory and learning content</option>
+            <option value="simulation">Interactive simulation</option>
+            <option value="interface">Website interface and navigation</option>
+            <option value="assessment">Assessment and quiz</option>
+        </select>
+
+        <label for="comments">Comments or suggestions</label>
+        <textarea
+            id="comments"
+            name="comments"
+            rows="4"
+            maxlength="1000"
+            placeholder="Tell us what worked well or what could be improved..."
+        ></textarea>
+
+        <button class="primary-button" type="submit">
+            Submit Feedback
+        </button>
+    </form>
+
+    <p id="feedbackResult" class="message" role="status" aria-live="polite"></p>
+
+    <h3>References</h3>
+    <ul>
+        <li>Virtual Lab Development Guidelines, CSS TH ISE, October 2026.</li>
+        <li>Simulation formulas and expected outputs documented in this module.</li>
+        <li>
+            <a href="https://www.cloudflare.com/learning/ddos/what-is-a-ddos-attack/"
+               target="_blank" rel="noopener noreferrer">
+                Cloudflare Learning Center — What is a DDoS attack?
+            </a>
+        </li>
+        <li>
+            <a href="https://www.cloudflare.com/learning/bots/what-is-rate-limiting/"
+               target="_blank" rel="noopener noreferrer">
+                Cloudflare Learning Center — What is rate limiting?
+            </a>
+        </li>
+    </ul>
+
+    <p class="muted">
+        Feedback is demonstrated locally in your browser and is not permanently
+        stored or sent to a server.
+    </p>
+</article>
+
+        </div>
+    </section>
+
+    <aside class="resources" id="resourcesPanel">
+        <div class="resource-tabs">
+            <button class="resource-tab active" data-tab="all">All</button>
+            <button class="resource-tab" data-tab="video">▶ Video</button>
+            <button class="resource-tab" data-tab="interactive">♧ Interactive</button>
+        </div>
+        <div class="resource-heading">Explanation Resources</div>
+        <div id="resourceList" class="resource-list"></div>
+        <p class="resource-note">Select a resource to view its content.</p>
+    </aside>
+</main>
+</body>
+</html>
