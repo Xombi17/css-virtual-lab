@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description"
+    content="Cyber Security Virtual Lab - Experiment: Demonstrate DoS and DDoS Attack. Educational simulation with multi-source rate modeling and per-source rate limiting protection.">
+  <title>Cyber Security Lab Manual | DoS and DDoS Attack</title>
+  <link rel="stylesheet" href="ddos_view.css">
+</head>
+
+<body class="ddv-root">
+
+  <!-- TOP HEADER BAR: Terracotta/brown, white text, rounded bottom corners -->
+  <header class="ddv-header" role="banner">
+    <div class="ddv-header-inner">
+      <div class="ddv-header-left">
+        <a href="index.html" class="ddv-back-btn" id="ddv-back-btn" aria-label="Back to main lab"
+          title="Back to main lab index">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+        </a>
+        <div class="ddv-header-titles">
+          <h1 class="ddv-header-title">Cyber Security Lab Manual</h1>
+          <div class="ddv-header-subtitle">
+            Experiment EXP03 · DoS and DDoS Attack · TE Comp A (Fr. CRCE)
+          </div>
+        </div>
+      </div>
+
+      <button type="button" class="ddv-share-btn" id="ddv-share-btn" title="Copy experiment URL to clipboard">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+          <polyline points="16 6 12 2 8 6"></polyline>
+          <line x1="12" y1="2" x2="12" y2="15"></line>
+        </svg>
+        <span id="ddv-share-text">Share</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN 2-COLUMN CONTAINER -->
+  <div class="ddv-container">
+
+    <!-- LEFT: Large white content card -->
+    <main class="ddv-main-card" role="main">
+
+      <!-- TOP TOOLBAR -->
+      <div class="ddv-toolbar" role="toolbar" aria-label="Lab navigation and accessibility controls">
+        <div class="ddv-toolbar-left">
+          <button type="button" class="ddv-btn-icon" id="ddv-btn-toggle-panel" title="Toggle Resource Panel"
+            aria-label="Toggle Resource Panel">
+            &#9776;
+          </button>
+
+          <!-- Web Speech API Read Aloud Button -->
+          <button type="button" class="ddv-btn-pill ddv-btn-primary" id="ddv-btn-read-aloud" aria-live="polite">
+            <span id="ddv-read-icon">&#128266;</span>
+            <span id="ddv-read-text">Read Aloud</span>
+          </button>
+
+          <!-- Speed Dropdown -->
+          <label for="ddv-select-speed" class="ddv-visually-hidden" style="display:none">Speech Speed</label>
+          <select id="ddv-select-speed" class="ddv-select" title="Speech playback rate">
+            <option value="0.75">0.75x</option>
+            <option value="1.0" selected>1.0x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+          </select>
+
+          <!-- Voice Dropdown -->
+          <label for="ddv-select-voice" class="ddv-visually-hidden" style="display:none">Speech Voice</label>
+          <select id="ddv-select-voice" class="ddv-select" style="max-width: 140px;" title="Select Voice">
+            <option value="">Default Voice</option>
+          </select>
+        </div>
+
+        <div class="ddv-toolbar-right">
+          <!-- Font size adjustments -->
+          <button type="button" class="ddv-btn-icon" id="ddv-font-dec" title="Decrease font size"
+            aria-label="Decrease font size">A-</button>
+          <button type="button" class="ddv-btn-icon" id="ddv-font-inc" title="Increase font size"
+            aria-label="Increase font size">A+</button>
+
+          <!-- Page Counter & Next/Prev -->
+          <span class="ddv-page-counter" aria-live="polite">
+            <span id="ddv-page-current">1</span> / <span id="ddv-page-total">8</span>
+          </span>
+
+          <button type="button" class="ddv-btn-icon" id="ddv-btn-prev" title="Previous section"
+            aria-label="Previous section">
+            &#8592;
+          </button>
+          <button type="button" class="ddv-btn-next-circle" id="ddv-btn-next" title="Next section"
+            aria-label="Next section">
+            &#8594;
+          </button>
+        </div>
+      </div>
+
+      <!-- SCROLLABLE CONTENT AREA -->
+      <div class="ddv-content-area" id="ddv-content-area">
+
+        <!-- ===================================================================
+             SECTION 1: Aim and Objectives
+             =================================================================== -->
+        <section id="ddv-section-1" class="ddv-section ddv-active" aria-labelledby="heading-sec-1">
+          <h2 id="heading-sec-1" class="ddv-section-title">Aim and Objectives</h2>
+          <p class="ddv-section-subtitle">Experiment 03: Cryptography and System Security (CSS) Lab</p>
+
+          <h3 style="color: var(--ddv-text-dark); margin-top: 1rem;">Aim</h3>
+          <p>
+            To study, simulate, and analyze the operational impact of <strong>Denial of Service (DoS)</strong>
+            and <strong>Distributed Denial of Service (DDoS)</strong> attacks against a centralized server,
+            and to evaluate the efficacy and inherent architectural limitations of <strong>per-source rate
+              limiting</strong> defenses.
+          </p>
+
+          <div class="ddv-callout ddv-callout-info">
+            <strong>Key Focus:</strong> Compare how single-source flooding behaves differently from multi-source
+            distributed botnet flooding when filtered through edge rate limiters.
+          </div>
+
+          <h3 style="color: var(--ddv-text-dark); margin-top: 1.5rem;">Objectives</h3>
+          <ul style="padding-left: 1.25rem; line-height: 1.8;">
+            <li>Understand the fundamental distinction between single-source DoS and multi-source botnet DDoS attacks.
+            </li>
+            <li>Analyze server queue saturation and request drop rates when offered aggregate traffic exceeds server
+              processing capacity.</li>
+            <li>Simulate per-source rate limiting (filtering requests on an upstream firewall / proxy) and observe why
+              individual rate limits neutralize high-volume DoS but fail against distributed low-rate DDoS botnets.</li>
+            <li>Record comparative quantitative observations across Baseline, Unmitigated DDoS, and Protected phases.
+            </li>
+            <li>Identify enterprise defenses (Anycast CDN, scrubbing centers, Web Application Firewalls) necessary to
+              mitigate real-world DDoS attacks.</li>
+          </ul>
+        </section>
+
+        <!-- ===================================================================
+             SECTION 2: Theory
+             =================================================================== -->
+        <section id="ddv-section-2" class="ddv-section" aria-labelledby="heading-sec-2">
+          <h2 id="heading-sec-2" class="ddv-section-title">Theory: DoS vs DDoS &amp; Protection Mechanisms</h2>
+          <p class="ddv-section-subtitle">Foundations of Availability in the CIA Triad</p>
+
+          <h3 style="color: var(--ddv-text-dark); margin-top: 1rem;">1. Server Capacity and the Availability Triad</h3>
+          <p>
+            Every physical or virtual server has finite finite compute resources: maximum network socket allocations,
+            CPU cycles, RAM buffers, and application worker threads. This maximum sustainable processing rate is defined
+            as <strong>Server Capacity (measured in requests/second)</strong>. When incoming traffic arrival rates
+            exceed server capacity, requests accumulate in connection queues until buffers overflow, causing the server
+            to <strong>drop</strong> incoming connections and deny service to legitimate users.
+          </p>
+
+          <h3 style="color: var(--ddv-text-dark); margin-top: 1.25rem;">2. Single-Source DoS vs Multi-Source DDoS</h3>
+          <p>
+            In a <strong>Denial of Service (DoS)</strong> attack, a single attacker machine floods the server with an
+            extraordinarily high request rate (e.g., 120 req/s from one IP). Because this single IP transmits orders of
+            magnitude above normal client activity, it is readily detectable by threshold inspection.
+          </p>
+          <p>
+            In a <strong>Distributed Denial of Service (DDoS)</strong> attack, the adversary harnesses a
+            <strong>Botnet</strong>—thousands of compromised endpoints (PCs, IoT devices, cloud servers) coordinated
+            through Command and Control (C2) channels. Each individual bot transmits at a deceptively modest rate (e.g.,
+            5 to 10 req/s), indistinguishable from authentic human behavior. However, the aggregate sum across all bots
+            overwhelms server capacity.
+          </p>
+
+          <h3 style="color: var(--ddv-text-dark); margin-top: 1.25rem;">3. Volumetric vs Application-Layer Floods</h3>
+          <p>
+            <strong>Volumetric Floods (Layer 3/4):</strong> Aim to saturate the network pipe via UDP floods, ICMP
+            storms, or DNS amplification.
+          </p>
+          <p>
+            <strong>Application-Layer Floods (Layer 7):</strong> Target web application endpoints (HTTP GET/POST) by
+            making computationally expensive database queries or file downloads, exhausting server thread pools with
+            comparatively lower bandwidth.
+          </p>
+
+          <h3 style="color: var(--ddv-text-dark); margin-top: 1.25rem;">4. Per-Source Rate Limiting &amp; Why It Fails
+            Against DDoS</h3>
+          <p>
+            Per-source rate limiting caps incoming requests allowed from any single client IP address within a time
+            window (e.g., max 10 req/s per IP).
+          </p>
+          <ul style="padding-left: 1.25rem; line-height: 1.8;">
+            <li><strong>Against DoS:</strong> Extremely effective. The single source sending 120 req/s is restricted to
+              10 req/s. 110 req/s are blocked, protecting the server.</li>
+            <li><strong>Against DDoS:</strong> Ineffective. If 200 bots each send 5 req/s, every bot stays strictly
+              below the 10 req/s threshold. <strong>Zero bot requests are blocked</strong>, and all 1,000 req/s hit the
+              server.</li>
+          </ul>
+
+          <h3 style="color: var(--ddv-text-dark); margin-top: 1.25rem;">5. Real-World Defenses</h3>
+          <p>
+            Industry production architectures defend against DDoS using multi-layered edge technologies:
+          </p>
+          <ul style="padding-left: 1.25rem; line-height: 1.8;">
+            <li><strong>Anycast Content Delivery Networks (CDNs):</strong> Disperse regional volumetric floods across
+              globally distributed edge Points of Presence (PoPs).</li>
+            <li><strong>DDoS Scrubbing Centers:</strong> Specialized cloud inspection facilities that separate malicious
+              packet floods using deep packet inspection (BGP diversion).</li>
+            <li><strong>Web Application Firewalls (WAF) &amp; Behavioral Analysis:</strong> Enforce CAPTCHAs,
+              cryptographic browser proof-of-work challenges, and TLS fingerprinting.</li>
+            <li><strong>Host Firewalls (Conceptual):</strong> Linux packet filtering systems (such as
+              <code>iptables</code> / <code>nftables</code> with connection tracking modules) can enforce rate
+              thresholds at the kernel boundary before packets hit application processes.</li>
+          </ul>
+
+          <div class="ddv-callout ddv-callout-warning">
+            <strong>Limitations of This Educational Model:</strong><br>
+            This virtual lab uses a pure numerical aggregate request model (req/s). It assumes attack sources are
+            discrete and identifiable. It does not model TCP handshakes, SYN queues, socket exhaustion, latency
+            distributions, or spoofed IP headers. In real networks, simple rate limiting cannot stop true DDoS.
+          </div>
+        </section>
+
+        <!-- ===================================================================
+             SECTION 3: Procedure
+             =================================================================== -->
+        <section id="ddv-section-3" class="ddv-section" aria-labelledby="heading-sec-3">
+          <h2 id="heading-sec-3" class="ddv-section-title">Procedure: DDoS &amp; Protection Experiment</h2>
+          <p class="ddv-section-subtitle">Step-by-step workflow for running simulations and recording observations</p>
+
+          <ol style="padding-left: 1.25rem; line-height: 1.85;">
+            <li>
+              <strong>Navigate to Interactive Simulation:</strong>
+              Open Section 4 ("Interactive: DDoS Simulation") from the toolbar or the right-side resource panel.
+            </li>
+            <li>
+              <strong>Phase 1 - Run Baseline Normal Traffic Preset:</strong>
+              Click the <em>Normal (20 / 0 / 100)</em> preset button. Verify:
+              <ul>
+                <li>Legitimate traffic = 20 req/s</li>
+                <li>Server capacity = 100 req/s</li>
+                <li>Attack traffic = 0 req/s</li>
+              </ul>
+              Click <strong>Run Simulation</strong>.
+              <br><em>Expected observation:</em> Status is <strong>Normal</strong>, 0 dropped requests, server
+              utilization ~20%, CPU usage low, service state Responsive. Auto-recorded to Observation Table row 1.
+            </li>
+            <li>
+              <strong>Phase 2 - Run DoS Single-Source Flood Preset:</strong>
+              Click the <em>DoS (20 + 1x120 / 100)</em> preset. 1 attacker source emits 120 req/s.
+              Click <strong>Run Simulation</strong> without protection.
+              <br><em>Expected observation:</em> Server is <strong>Overloaded</strong>, 40 requests dropped per second,
+              legitimate traffic suffers severe drop rate.
+            </li>
+            <li>
+              <strong>Phase 3 - Run Unmitigated DDoS Attack Preset:</strong>
+              Click the <em>DDoS (20 + 5x40 / 100)</em> preset. 5 distributed attack nodes emit 40 req/s each (total
+              attack 200 req/s).
+              Keep protection turned OFF. Click <strong>Run Simulation</strong>.
+              <br><em>Expected observation:</em> Offered traffic is 220 req/s against 100 capacity. Status is
+              <strong>Overloaded</strong>, 120 req/s dropped, CPU near 99%, service state Unresponsive. Auto-recorded to
+              Observation Table row 2.
+            </li>
+            <li>
+              <strong>Phase 4 - Test DDoS with Per-Source Rate Limiting:</strong>
+              Click the <em>DDoS + Protection</em> preset (20 legit, 5x40 attack, limit 10/source).
+              Click <strong>Run Simulation</strong>.
+              <br><em>Expected observation:</em> Rate limiter blocks 150 req/s (each bot capped from 40 to 10). Arriving
+              traffic is 70 req/s, accepted is 70 req/s, 0 dropped. Status recovers to <strong>Normal</strong>.
+              Auto-recorded to Observation Table row 3.
+            </li>
+            <li>
+              <strong>Phase 5 - Stress Test Distributed Bot Scaling:</strong>
+              Manually increase attacker count to 50 sources, keeping the 10 req/s limit. Click <strong>Run
+                Simulation</strong>.
+              <br><em>Expected observation:</em> Even with 10 req/s per source, 50 bots yield 500 req/s allowed. The
+              server enters <strong>Overloaded</strong> status with 420 dropped req/s, proving that simple per-source
+              rate limiting collapses under true distributed scale.
+            </li>
+            <li>
+              <strong>Review &amp; Verify Observations:</strong>
+              Open Section 5 ("Observation Table") to review the auto-populated 3-phase comparative data matrix.
+            </li>
+          </ol>
+        </section>
+
+        <!-- ===================================================================
+             SECTION 4: Interactive Simulation
+             =================================================================== -->
+        <section id="ddv-section-4" class="ddv-section" aria-labelledby="heading-sec-4">
+          <h2 id="heading-sec-4" class="ddv-section-title">Interactive: DDoS Simulation &amp; Rate Limiter</h2>
+          <p class="ddv-section-subtitle">Mathematical traffic modeling and live network topology visualization</p>
+
+          <!-- Error Alert Banner -->
+          <div id="ddv-alert-error" class="ddv-alert-error" role="alert" aria-live="assertive"></div>
+
+          <!-- CONTROLS CARD -->
+          <div class="ddv-sim-controls-card">
+            <!-- Preset Buttons -->
+            <div class="ddv-presets-row" role="group" aria-label="Quick Scenario Presets">
+              <button type="button" id="ddv-preset-normal" class="ddv-preset-btn">Normal (20 / 0 / 100)</button>
+              <button type="button" id="ddv-preset-dos" class="ddv-preset-btn">DoS (20 + 1x120 / 100)</button>
+              <button type="button" id="ddv-preset-ddos" class="ddv-preset-btn ddv-preset-active">DDoS (20 + 5x40 /
+                100)</button>
+              <button type="button" id="ddv-preset-ddos-protect" class="ddv-preset-btn">DDoS + Protection (5x40, limit
+                10)</button>
+            </div>
+
+            <!-- Parameters Grid -->
+            <div class="ddv-form-grid">
+              <div class="ddv-form-group">
+                <label for="ddv-scenario-select" class="ddv-label">Scenario Mode</label>
+                <select id="ddv-scenario-select" class="ddv-input">
+                  <option value="ddos" selected>Distributed DoS (DDoS)</option>
+                  <option value="dos">Single-Source DoS</option>
+                  <option value="normal">Normal Baseline Traffic</option>
+                </select>
+                <span class="ddv-error-msg" id="ddv-err-scenario"></span>
+              </div>
+
+              <div class="ddv-form-group">
+                <label for="ddv-input-legitimate" class="ddv-label">
+                  <span>Legitimate Traffic</span>
+                  <span class="ddv-unit">req / sec</span>
+                </label>
+                <input type="number" id="ddv-input-legitimate" class="ddv-input" value="20" min="0" max="1000">
+                <span class="ddv-error-msg" id="ddv-err-legitimate"></span>
+              </div>
+
+              <div class="ddv-form-group" id="ddv-group-attacker-count">
+                <label for="ddv-input-attacker-count" class="ddv-label">
+                  <span>Attacker Sources (Bots)</span>
+                  <span class="ddv-unit">nodes</span>
+                </label>
+                <input type="number" id="ddv-input-attacker-count" class="ddv-input" value="5" min="1" max="500">
+                <span class="ddv-error-msg" id="ddv-err-attacker-count"></span>
+              </div>
+
+              <div class="ddv-form-group">
+                <label for="ddv-input-attack-rate" class="ddv-label">
+                  <span>Attack Rate per Source</span>
+                  <span class="ddv-unit">req / sec</span>
+                </label>
+                <input type="number" id="ddv-input-attack-rate" class="ddv-input" value="40" min="0" max="2000">
+                <span class="ddv-error-msg" id="ddv-err-attack-rate"></span>
+              </div>
+
+              <div class="ddv-form-group">
+                <label for="ddv-input-capacity" class="ddv-label">
+                  <span>Server Capacity</span>
+                  <span class="ddv-unit">req / sec</span>
+                </label>
+                <input type="number" id="ddv-input-capacity" class="ddv-input" value="100" min="10" max="5000">
+                <span class="ddv-error-msg" id="ddv-err-capacity"></span>
+              </div>
+
+              <div class="ddv-form-group">
+                <label class="ddv-label">Rate Limiter Shield</label>
+                <label class="ddv-toggle-wrap">
+                  <span class="ddv-switch">
+                    <input type="checkbox" id="ddv-toggle-protection">
+                    <span class="ddv-slider"></span>
+                  </span>
+                  <span id="ddv-protection-label-text" style="font-weight: 500; font-size: 0.9rem;">Disabled</span>
+                </label>
+              </div>
+
+              <div class="ddv-form-group" id="ddv-group-source-limit">
+                <label for="ddv-input-source-limit" class="ddv-label">
+                  <span>Per-Source Rate Limit</span>
+                  <span class="ddv-unit">req / sec / source</span>
+                </label>
+                <input type="number" id="ddv-input-source-limit" class="ddv-input" value="10" min="0" max="1000"
+                  disabled>
+                <span class="ddv-error-msg" id="ddv-err-source-limit"></span>
+              </div>
+            </div>
+
+            <div class="ddv-actions-row">
+              <button type="button" id="ddv-btn-run" class="ddv-btn-action ddv-btn-primary">
+                Run Simulation
+              </button>
+              <button type="button" id="ddv-btn-reset" class="ddv-btn-action ddv-btn-reset">
+                Reset
+              </button>
+            </div>
+          </div>
+
+          <!-- RESULTS CARD -->
+          <div id="ddv-results-container" class="ddv-results-card" aria-live="polite">
+            <div class="ddv-status-row">
+              <h3 style="margin: 0; font-size: 1.1rem; color: var(--ddv-text-dark);">Simulation Status</h3>
+              <span id="ddv-status-badge" class="ddv-status-badge ddv-status-normal">
+                <span id="ddv-status-icon">&#9679;</span>
+                <span id="ddv-status-text">Normal</span>
+              </span>
+            </div>
+
+            <div id="ddv-result-message" class="ddv-result-message">
+              Click "Run Simulation" to model traffic arrival rates against server capacity.
+            </div>
+
+            <!-- Quantitative Metrics Grid -->
+            <div class="ddv-metrics-grid">
+              <div class="ddv-metric-tile">
+                <div class="ddv-metric-title">Offered Total</div>
+                <div class="ddv-metric-val" id="ddv-metric-offered">220</div>
+                <div class="ddv-metric-unit">req / s</div>
+              </div>
+              <div class="ddv-metric-tile">
+                <div class="ddv-metric-title">Server Input</div>
+                <div class="ddv-metric-val" id="ddv-metric-incoming">220</div>
+                <div class="ddv-metric-unit">req / s</div>
+              </div>
+              <div class="ddv-metric-tile">
+                <div class="ddv-metric-title">Accepted</div>
+                <div class="ddv-metric-val" id="ddv-metric-accepted" style="color: var(--ddv-ok);">100</div>
+                <div class="ddv-metric-unit">req / s</div>
+              </div>
+              <div class="ddv-metric-tile">
+                <div class="ddv-metric-title">Dropped (Over Cap)</div>
+                <div class="ddv-metric-val" id="ddv-metric-dropped" style="color: var(--ddv-bad);">120</div>
+                <div class="ddv-metric-unit">req / s</div>
+              </div>
+              <div class="ddv-metric-tile">
+                <div class="ddv-metric-title">Blocked (Limiter)</div>
+                <div class="ddv-metric-val" id="ddv-metric-blocked" style="color: var(--ddv-warn);">0</div>
+                <div class="ddv-metric-unit">req / s</div>
+              </div>
+            </div>
+
+            <!-- ILLUSTRATIVE MONITOR STRIP -->
+            <div class="ddv-monitor-strip">
+              <div class="ddv-monitor-header">
+                <span class="ddv-monitor-title">&#128187; Simulated Server Monitor</span>
+                <span class="ddv-pill-illustrative">Illustrative Estimate</span>
+              </div>
+              <div class="ddv-monitor-metrics">
+                <div>
+                  <div style="display:flex; justify-content:space-between;">
+                    <span>CPU Load:</span>
+                    <strong id="ddv-metric-cpu">98.0%</strong>
+                  </div>
+                  <div class="ddv-gauge-bar-wrap">
+                    <div id="ddv-gauge-cpu" class="ddv-gauge-bar" style="width: 98%;"></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div style="display:flex; justify-content:space-between;">
+                    <span>RAM Utilization:</span>
+                    <strong id="ddv-metric-ram">85.0%</strong>
+                  </div>
+                  <div class="ddv-gauge-bar-wrap">
+                    <div id="ddv-gauge-ram" class="ddv-gauge-bar" style="width: 85%;"></div>
+                  </div>
+                </div>
+
+                <div>
+                  <span>Packets Throughput:</span><br>
+                  <strong id="ddv-metric-packets">220</strong> <span
+                    style="font-size:0.75rem; color:var(--ddv-text-muted);">packets/sec</span>
+                </div>
+
+                <div>
+                  <span>Service State:</span><br>
+                  <strong id="ddv-metric-state" style="color: var(--ddv-bad);">Unresponsive</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TOPOLOGY & LIVE PACKET FLOW CANVAS -->
+          <div class="ddv-canvas-card">
+            <h3 style="margin: 0 0 0.5rem 0; font-size: 1.05rem; color: var(--ddv-text-dark);">
+              &#127760; Live Network Topology &amp; Traffic Flow
+            </h3>
+            <div class="ddv-canvas-viewport">
+              <canvas id="ddv-topo-canvas" class="ddv-canvas" width="900" height="240" role="img"
+                aria-label="Network topology diagram showing packet flow from botnet and legitimate users through firewall to server"></canvas>
+            </div>
+            <div class="ddv-canvas-legend">
+              <span><span class="ddv-legend-dot" style="background:#15803d;"></span> Legitimate User (192.0.2.10)</span>
+              <span><span class="ddv-legend-dot" style="background:#b91c1c;"></span> Attack Botnet (198.51.100.x,
+                203.0.113.x)</span>
+              <span><span class="ddv-legend-dot" style="background:#d97706;"></span> Rate Limiter / Firewall</span>
+              <span><span class="ddv-legend-dot" style="background:#0B5CAB;"></span> Target Server</span>
+            </div>
+          </div>
+
+          <!-- BAR CHART BREAKDOWN -->
+          <div class="ddv-chart-card">
+            <h3 style="margin: 0 0 0.5rem 0; font-size: 1.05rem; color: var(--ddv-text-dark);">
+              &#128202; Traffic Composition &amp; Capacity Gauge (simulated req/s)
+            </h3>
+            <div id="ddv-chart-container" class="ddv-chart-container"></div>
+            <div id="ddv-chart-explanation"
+              style="font-size: 0.85rem; color: var(--ddv-text-muted); margin-top: 0.5rem;"></div>
+          </div>
+
+          <!-- ACTIVITY LOG -->
+          <div class="ddv-results-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.75rem;">
+              <h3 style="margin:0; font-size: 1.05rem; color: var(--ddv-text-dark);">&#128221; Activity Log</h3>
+              <button type="button" id="ddv-btn-clear-log" class="ddv-btn-pill ddv-btn-reset"
+                style="padding: 0.2rem 0.6rem; font-size: 0.78rem;">Clear Log</button>
+            </div>
+            <div class="ddv-table-wrap">
+              <table class="ddv-table" aria-live="polite">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Scenario</th>
+                    <th>Offered</th>
+                    <th>Incoming</th>
+                    <th>Accepted</th>
+                    <th>Dropped</th>
+                    <th>Blocked</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="ddv-log-body">
+                  <tr>
+                    <td colspan="8" style="text-align:center; color:var(--ddv-text-muted);">No simulation runs yet.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================================================================
+             SECTION 5: Observation Table
+             =================================================================== -->
+        <section id="ddv-section-5" class="ddv-section" aria-labelledby="heading-sec-5">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.5rem;">
+            <h2 id="heading-sec-5" class="ddv-section-title" style="margin-bottom:0; border:none;">Observation Table
+            </h2>
+            <button type="button" id="ddv-btn-clear-observations" class="ddv-btn-pill ddv-btn-reset">Clear
+              Table</button>
+          </div>
+          <p class="ddv-section-subtitle">Auto-filled 3-phase comparative data matrix comparing baseline, unmitigated
+            attack, and protected phases</p>
+
+          <div class="ddv-table-wrap">
+            <table class="ddv-table" id="ddv-observation-table">
+              <thead>
+                <tr>
+                  <th>Phase / Scenario</th>
+                  <th>Incoming (req/s)</th>
+                  <th>Accepted (req/s)</th>
+                  <th>Dropped (req/s)</th>
+                  <th>Blocked (req/s)</th>
+                  <th>CPU %</th>
+                  <th>RAM %</th>
+                  <th>Packets/s</th>
+                  <th>Service State</th>
+                </tr>
+              </thead>
+              <tbody id="ddv-observation-body">
+                <tr id="ddv-obs-row-baseline">
+                  <td><strong>1. Baseline (Normal)</strong></td>
+                  <td class="obs-in">-</td>
+                  <td class="obs-acc">-</td>
+                  <td class="obs-drop">-</td>
+                  <td class="obs-block">-</td>
+                  <td class="obs-cpu">-</td>
+                  <td class="obs-ram">-</td>
+                  <td class="obs-pps">-</td>
+                  <td class="obs-state">-</td>
+                </tr>
+                <tr id="ddv-obs-row-ddos">
+                  <td><strong>2. Under DDoS (No Defense)</strong></td>
+                  <td class="obs-in">-</td>
+                  <td class="obs-acc">-</td>
+                  <td class="obs-drop">-</td>
+                  <td class="obs-block">-</td>
+                  <td class="obs-cpu">-</td>
+                  <td class="obs-ram">-</td>
+                  <td class="obs-pps">-</td>
+                  <td class="obs-state">-</td>
+                </tr>
+                <tr id="ddv-obs-row-protected">
+                  <td><strong>3. With Rate Limiter Protection</strong></td>
+                  <td class="obs-in">-</td>
+                  <td class="obs-acc">-</td>
+                  <td class="obs-drop">-</td>
+                  <td class="obs-block">-</td>
+                  <td class="obs-cpu">-</td>
+                  <td class="obs-ram">-</td>
+                  <td class="obs-pps">-</td>
+                  <td class="obs-state">-</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="ddv-callout ddv-callout-info">
+            <strong>Observation Analysis:</strong> Notice that in Phase 2 (Under DDoS), high aggregate volume overshoots
+            capacity causing high drops and an Unresponsive state. In Phase 3, when per-source rate limiting is engaged
+            against high per-source rates, blocked volume increases, lowering server input below capacity and restoring
+            normal responsiveness.
+          </div>
+        </section>
+
+        <!-- ===================================================================
+             SECTION 6: Quiz
+             =================================================================== -->
+        <section id="ddv-section-6" class="ddv-section" aria-labelledby="heading-sec-6">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.5rem;">
+            <h2 id="heading-sec-6" class="ddv-section-title" style="margin-bottom:0; border:none;">Quiz: DDoS &amp;
+              Protection</h2>
+            <button type="button" id="ddv-btn-retry-quiz" class="ddv-btn-pill ddv-btn-reset">Retry Quiz</button>
+          </div>
+          <p class="ddv-section-subtitle">Test your understanding of distributed attacks and rate-limiting defenses</p>
+
+          <div id="ddv-quiz-score-banner"
+            style="display:none; background:var(--ddv-accent-soft); padding:0.75rem 1rem; border-radius:var(--ddv-radius-sm); margin-bottom:1rem; font-weight:700;">
+            Your Score: <span id="ddv-quiz-score">0</span> / 5
+          </div>
+
+          <div id="ddv-quiz-container">
+            <!-- 5 MCQs populated dynamically by ddos_view.js -->
+          </div>
+        </section>
+
+        <!-- ===================================================================
+             SECTION 7: References
+             =================================================================== -->
+        <section id="ddv-section-7" class="ddv-section" aria-labelledby="heading-sec-7">
+          <h2 id="heading-sec-7" class="ddv-section-title">References</h2>
+          <p class="ddv-section-subtitle">Academic standards, industry guidance, and security best practices</p>
+
+          <ul style="padding-left: 1.25rem; line-height: 2;">
+            <li>
+              <strong>Cloudflare Learning Center:</strong> <em>What is a Distributed Denial of Service (DDoS)
+                Attack?</em>
+              <br><span
+                style="color:var(--ddv-text-muted); font-size:0.85rem;">https://www.cloudflare.com/learning/ddos/what-is-a-ddos-attack/</span>
+            </li>
+            <li>
+              <strong>CISA (Cybersecurity &amp; Infrastructure Security Agency):</strong> <em>Understanding
+                Denial-of-Service Attacks (Security Tip ST04-015)</em>
+              <br><span
+                style="color:var(--ddv-text-muted); font-size:0.85rem;">https://www.cisa.gov/news-events/news/understanding-denial-service-attacks</span>
+            </li>
+            <li>
+              <strong>NIST Special Publication 800-44:</strong> <em>Guidelines on Securing Public Web Servers</em>
+              <br><span style="color:var(--ddv-text-muted); font-size:0.85rem;">National Institute of Standards and
+                Technology</span>
+            </li>
+            <li>
+              <strong>OWASP Foundation:</strong> <em>Denial of Service Prevention Cheat Sheet</em>
+              <br><span
+                style="color:var(--ddv-text-muted); font-size:0.85rem;">https://cheatsheetseries.owasp.org/cheatsheets/Denial_of_Service_Cheat_Sheet.html</span>
+            </li>
+            <li>
+              <strong>IETF RFC 4732:</strong> <em>Internet Denial-of-Service Considerations</em>
+              <br><span style="color:var(--ddv-text-muted); font-size:0.85rem;">Internet Engineering Task Force (M.
+                Handley et al.)</span>
+            </li>
+          </ul>
+        </section>
+
+        <!-- ===================================================================
+             SECTION 8: Feedback
+             =================================================================== -->
+        <section id="ddv-section-8" class="ddv-section" aria-labelledby="heading-sec-8">
+          <h2 id="heading-sec-8" class="ddv-section-title">Feedback</h2>
+          <p class="ddv-section-subtitle">Help improve the educational clarity and simulation fidelity of this virtual
+            lab</p>
+
+          <form id="ddv-feedback-form" class="ddv-feedback-form" onsubmit="return false;">
+            <div style="margin-bottom: 1rem;">
+              <label class="ddv-label" style="margin-bottom:0.4rem;">Rate your learning experience:</label>
+              <div style="display:flex; gap: 1rem;">
+                <label><input type="radio" name="ddv-rating" value="5" checked> &#11088;&#11088;&#11088;&#11088;&#11088;
+                  (Excellent)</label>
+                <label><input type="radio" name="ddv-rating" value="4"> &#11088;&#11088;&#11088;&#11088; (Good)</label>
+                <label><input type="radio" name="ddv-rating" value="3"> &#11088;&#11088;&#11088; (Average)</label>
+              </div>
+            </div>
+
+            <div style="margin-bottom: 1rem;">
+              <label for="ddv-feedback-comments" class="ddv-label" style="margin-bottom:0.4rem;">Observations or
+                Suggestions:</label>
+              <textarea id="ddv-feedback-comments" class="ddv-textarea"
+                placeholder="Share your feedback on the DDoS topology, rate limiter concepts, or quiz questions..."></textarea>
+            </div>
+
+            <button type="submit" id="ddv-feedback-submit" class="ddv-btn-pill ddv-btn-primary"
+              style="padding: 0.5rem 1.25rem;">
+              Submit Feedback
+            </button>
+          </form>
+
+          <div id="ddv-feedback-thank-you" class="ddv-thank-you">
+            &#10004; Thank you for submitting your feedback! Your evaluation has been saved locally for lab review.
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- RIGHT: Resource Panel with Tab Row and Collapsible Cards -->
+    <aside class="ddv-resource-panel" id="ddv-resource-panel" aria-label="Experiment Resource Navigation">
+
+      <!-- TOP TAB ROW: All | Theory | Procedure | Interactive | Quiz -->
+      <div class="ddv-tab-row" role="tablist">
+        <button type="button" class="ddv-tab-btn ddv-tab-active" data-filter="all" role="tab"
+          aria-selected="true">All</button>
+        <button type="button" class="ddv-tab-btn" data-filter="theory" role="tab" aria-selected="false">Theory</button>
+        <button type="button" class="ddv-tab-btn" data-filter="procedure" role="tab"
+          aria-selected="false">Procedure</button>
+        <button type="button" class="ddv-tab-btn" data-filter="interactive" role="tab"
+          aria-selected="false">Interactive</button>
+        <button type="button" class="ddv-tab-btn" data-filter="quiz" role="tab" aria-selected="false">Quiz</button>
+      </div>
+
+      <!-- COLLAPSIBLE ACCORDION: Explanation Resources -->
+      <div class="ddv-panel-accordion" id="ddv-accordion">
+        <div class="ddv-accordion-header" id="ddv-accordion-toggle">
+          <span>Explanation Resources</span>
+          <span class="ddv-accordion-chevron" id="ddv-accordion-chevron">&#9662;</span>
+        </div>
+
+        <div class="ddv-card-list" id="ddv-card-list">
+          <!-- Card 1 -->
+          <div class="ddv-resource-card ddv-card-active" data-section="ddv-section-1" data-category="theory"
+            role="button" tabindex="0">
+            <div class="ddv-card-icon">&#127919;</div>
+            <div class="ddv-card-title">Aim and Objectives</div>
+          </div>
+
+          <!-- Card 2 -->
+          <div class="ddv-resource-card" data-section="ddv-section-2" data-category="theory" role="button" tabindex="0">
+            <div class="ddv-card-icon">&#128218;</div>
+            <div class="ddv-card-title">Theory: DoS vs DDoS</div>
+          </div>
+
+          <!-- Card 3 -->
+          <div class="ddv-resource-card" data-section="ddv-section-3" data-category="procedure" role="button"
+            tabindex="0">
+            <div class="ddv-card-icon">&#128221;</div>
+            <div class="ddv-card-title">Procedure: DDoS &amp; Protection</div>
+          </div>
+
+          <!-- Card 4 -->
+          <div class="ddv-resource-card" data-section="ddv-section-4" data-category="interactive" role="button"
+            tabindex="0">
+            <div class="ddv-card-icon">&#9881;</div>
+            <div class="ddv-card-title">Interactive: DDoS Simulation</div>
+          </div>
+
+          <!-- Card 5 -->
+          <div class="ddv-resource-card" data-section="ddv-section-5" data-category="procedure" role="button"
+            tabindex="0">
+            <div class="ddv-card-icon">&#128202;</div>
+            <div class="ddv-card-title">Observation Table</div>
+          </div>
+
+          <!-- Card 6 -->
+          <div class="ddv-resource-card" data-section="ddv-section-6" data-category="quiz" role="button" tabindex="0">
+            <div class="ddv-card-icon">&#9997;</div>
+            <div class="ddv-card-title">Quiz</div>
+          </div>
+
+          <!-- Card 7 -->
+          <div class="ddv-resource-card" data-section="ddv-section-7" data-category="theory" role="button" tabindex="0">
+            <div class="ddv-card-icon">&#128279;</div>
+            <div class="ddv-card-title">References</div>
+          </div>
+
+          <!-- Card 8 -->
+          <div class="ddv-resource-card" data-section="ddv-section-8" data-category="all" role="button" tabindex="0">
+            <div class="ddv-card-icon">&#128172;</div>
+            <div class="ddv-card-title">Feedback</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- DISCLAIMER FOOTER -->
+  <footer class="ddv-footer" role="contentinfo">
+    <p>
+      <strong>Educational Simulation Disclaimer:</strong> This virtual lab is designed strictly for academic instruction
+      in Cryptography and System Security (CSS) at Fr. Conceicao Rodrigues College of Engineering (TE Comp A).
+      All calculations are evaluated locally via mathematical request-rate models. No real network traffic, socket
+      flooding, or external systems are targeted.
+    </p>
+  </footer>
+
+  <script src="ddos_view.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Cryptography and System Security (CSS) - DoS Simulation and Monitoring Dashboard. Mathematical educational demonstration of single-source Denial of Service traffic and capacity overloading.">
+  <title>DoS Simulation & Monitoring | CSS Project</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Cleaned Header: Mocha clay banner -->
+    <header class="app-header">
+      <div class="header-top">
+        <div class="header-title-wrap">
+          <button type="button" class="header-back-btn" id="btn-back" aria-label="Go back" title="Reset view">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9e6b55" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </button>
+          <div class="header-text-group">
+            <h1 class="header-main-title">DoS Simulation &amp; Monitoring</h1>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- NEW INTERACTIVE FEATURE: Live Network Topology & Packet Flow Simulator -->
+    <section class="card topology-card" aria-labelledby="topology-heading">
+      <div class="card-title-row">
+        <div class="topology-title-group">
+          <h2 id="topology-heading" class="card-title">
+            <span aria-hidden="true">&#127760;</span> Live Network Topology &amp; Packet Flow
+          </h2>
+          <span id="topology-status-tag" class="topology-tag tag-overloaded">System Overloaded</span>
+        </div>
+        <div class="topology-controls">
+          <label class="defense-toggle-wrap" title="Enable Rate Limiting firewall defense against single-source attacker">
+            <input type="checkbox" id="toggle-defense">
+            <span class="defense-toggle-slider"></span>
+            <span class="defense-toggle-label">&#128737;&#65039; Rate Limiting Shield</span>
+          </label>
+          <button type="button" id="btn-toggle-stream" class="btn-stream active" title="Play or pause live packet flow animation">
+            <span id="stream-icon">&#10074;&#10074;</span>
+            <span id="stream-text">Live Flow</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Canvas for real-time packet rendering -->
+      <div class="topology-viewport">
+        <canvas id="topology-canvas" width="1240" height="230"></canvas>
+      </div>
+
+      <!-- Topology Interactive Status Bar -->
+      <div class="topology-footer">
+        <div class="topology-node-legend">
+          <span class="node-legend-item">
+            <span class="node-dot dot-legit"></span>
+            <span>Legitimate Clients: <strong id="topo-legit-val">40</strong> req/s</span>
+          </span>
+          <span class="node-legend-item">
+            <span class="node-dot dot-attack"></span>
+            <span>Single-Source Attacker: <strong id="topo-attack-val">100</strong> req/s</span>
+          </span>
+          <span class="node-legend-item">
+            <span class="node-dot dot-shield"></span>
+            <span>Rate Limiter: <strong id="topo-shield-val">DISABLED</strong></span>
+          </span>
+          <span class="node-legend-item">
+            <span class="node-dot dot-server"></span>
+            <span>Server Core Buffer: <strong id="topo-buffer-val">100% (40 dropped)</strong></span>
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Grid: Controls/Metrics & Visualizations -->
+    <main class="dashboard-grid">
+      <!-- Left Column: Controls & Metrics -->
+      <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+        
+        <!-- Simulation Control Card with Dual Sliders + Inputs -->
+        <section class="card" aria-labelledby="controls-heading">
+          <div class="card-title-row">
+            <h2 id="controls-heading" class="card-title">
+              <span aria-hidden="true">&#9881;</span> Simulation Controls
+            </h2>
+          </div>
+
+          <!-- Scenario Quick Presets -->
+          <div class="scenario-section">
+            <span class="section-label">Quick Scenarios</span>
+            <div class="scenario-btn-group" role="group" aria-label="Simulation Scenarios">
+              <button type="button" id="scenario-normal" class="btn-scenario" title="Legitimate: 40, Attack: 0, Capacity: 100">
+                <span>Normal</span>
+                <small>40 / 0 / 100</small>
+              </button>
+              <button type="button" id="scenario-capacity" class="btn-scenario" title="Legitimate: 40, Attack: 60, Capacity: 100">
+                <span>At Capacity</span>
+                <small>40 / 60 / 100</small>
+              </button>
+              <button type="button" id="scenario-overloaded" class="btn-scenario active" title="Legitimate: 40, Attack: 100, Capacity: 100">
+                <span>Overloaded</span>
+                <small>40 / 100 / 100</small>
+              </button>
+            </div>
+          </div>
+
+          <!-- Input Form with Interactive Range Sliders -->
+          <form id="dos-form" class="input-form" onsubmit="return false;">
+            <div class="form-group">
+              <label for="input-legitimate" class="form-label">
+                <span>Legitimate Traffic</span>
+                <span class="form-label-unit">req / sec</span>
+              </label>
+              <div class="slider-input-row">
+                <input
+                  type="range"
+                  id="slider-legitimate"
+                  class="range-slider"
+                  min="0"
+                  max="200"
+                  step="5"
+                  value="40"
+                  aria-label="Slider for Legitimate Traffic"
+                >
+                <div class="input-field-wrap compact-wrap">
+                  <input
+                    type="number"
+                    id="input-legitimate"
+                    class="input-field"
+                    min="0"
+                    step="1"
+                    value="40"
+                    required
+                    placeholder="40"
+                    aria-describedby="hint-legitimate"
+                  >
+                </div>
+              </div>
+              <span id="hint-legitimate" class="field-hint">Regular client traffic (non-negative integer)</span>
+            </div>
+
+            <div class="form-group">
+              <label for="input-attack" class="form-label">
+                <span>Attack Traffic (Single Source)</span>
+                <span class="form-label-unit">req / sec</span>
+              </label>
+              <div class="slider-input-row">
+                <input
+                  type="range"
+                  id="slider-attack"
+                  class="range-slider range-attack"
+                  min="0"
+                  max="300"
+                  step="5"
+                  value="100"
+                  aria-label="Slider for Attack Traffic"
+                >
+                <div class="input-field-wrap compact-wrap">
+                  <input
+                    type="number"
+                    id="input-attack"
+                    class="input-field"
+                    min="0"
+                    step="1"
+                    value="100"
+                    required
+                    placeholder="100"
+                    aria-describedby="hint-attack"
+                  >
+                </div>
+              </div>
+              <span id="hint-attack" class="field-hint">Traffic from 1 simulated attacker (non-negative integer)</span>
+            </div>
+
+            <div class="form-group">
+              <label for="input-capacity" class="form-label">
+                <span>Server Capacity</span>
+                <span class="form-label-unit">req / sec</span>
+              </label>
+              <div class="slider-input-row">
+                <input
+                  type="range"
+                  id="slider-capacity"
+                  class="range-slider"
+                  min="10"
+                  max="250"
+                  step="5"
+                  value="100"
+                  aria-label="Slider for Server Capacity"
+                >
+                <div class="input-field-wrap compact-wrap">
+                  <input
+                    type="number"
+                    id="input-capacity"
+                    class="input-field"
+                    min="1"
+                    step="1"
+                    value="100"
+                    required
+                    placeholder="100"
+                    aria-describedby="hint-capacity"
+                  >
+                </div>
+              </div>
+              <span id="hint-capacity" class="field-hint">Max throughput server can process (positive integer &gt; 0)</span>
+            </div>
+
+            <!-- Error Banner -->
+            <div id="alert-error" class="alert-box" role="alert"></div>
+
+            <!-- Action Buttons -->
+            <div class="form-actions">
+              <button type="button" id="btn-run-simulation" class="btn btn-primary">
+                <span aria-hidden="true">&#9658;</span> Run Simulation
+              </button>
+              <button type="button" id="btn-reset-simulation" class="btn btn-secondary">
+                <span aria-hidden="true">&#8635;</span> Reset
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <!-- Simulation Results Card -->
+        <section class="card" aria-labelledby="results-heading">
+          <div class="card-title-row">
+            <h2 id="results-heading" class="card-title">
+              <span aria-hidden="true">&#128202;</span> System Metrics
+            </h2>
+            <div class="status-badge-container">
+              <div id="status-badge" class="status-badge status-overloaded">
+                <span class="status-indicator-dot" aria-hidden="true"></span>
+                <span id="status-text">Overloaded</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Extended Metrics Grid with Latency & Availability -->
+          <div class="metrics-grid">
+            <div class="metric-card metric-incoming">
+              <span class="metric-card-label">Incoming Traffic</span>
+              <div class="metric-card-value">
+                <span id="metric-incoming">140</span>
+                <span class="metric-card-unit">req/s</span>
+              </div>
+            </div>
+
+            <div class="metric-card metric-accepted">
+              <span class="metric-card-label">Accepted Requests</span>
+              <div class="metric-card-value">
+                <span id="metric-accepted">100</span>
+                <span class="metric-card-unit">req/s</span>
+              </div>
+            </div>
+
+            <div class="metric-card metric-dropped">
+              <span class="metric-card-label">Dropped Requests</span>
+              <div class="metric-card-value">
+                <span id="metric-dropped">40</span>
+                <span class="metric-card-unit">req/s</span>
+              </div>
+            </div>
+
+            <div class="metric-card metric-capacity">
+              <span class="metric-card-label">Server Capacity</span>
+              <div class="metric-card-value">
+                <span id="metric-capacity">100</span>
+                <span class="metric-card-unit">req/s</span>
+              </div>
+            </div>
+
+            <div class="metric-card metric-utilization">
+              <span class="metric-card-label">Capacity Utilization</span>
+              <div class="metric-card-value">
+                <span id="metric-utilization">100%</span>
+              </div>
+            </div>
+
+            <div class="metric-card metric-drop-percent">
+              <span class="metric-card-label">Dropped Rate</span>
+              <div class="metric-card-value">
+                <span id="metric-drop-percent">28.57%</span>
+              </div>
+            </div>
+
+            <!-- Enhanced Response Latency Metric -->
+            <div class="metric-card metric-latency">
+              <span class="metric-card-label">Simulated Latency</span>
+              <div class="metric-card-value">
+                <span id="metric-latency">1,450</span>
+                <span class="metric-card-unit">ms</span>
+              </div>
+            </div>
+
+            <!-- Enhanced Availability Metric -->
+            <div class="metric-card metric-availability">
+              <span class="metric-card-label">Service Health</span>
+              <div class="metric-card-value">
+                <span id="metric-availability">71.4%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Result Explanation -->
+          <div class="explanation-box" aria-live="polite">
+            <span class="explanation-icon" aria-hidden="true">&#128161;</span>
+            <div class="explanation-content">
+              <span class="explanation-title">Simulation Analysis</span>
+              <p id="explanation-text" class="explanation-text">
+                140 requests arrive per second. The server can accept 100, so 40 are dropped.
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Right Column: Visualizations & Architecture Model -->
+      <div class="visualizations-col">
+        <!-- Current Breakdown Chart -->
+        <section class="card chart-card" aria-labelledby="chart-current-heading">
+          <div class="card-title-row chart-header">
+            <h2 id="chart-current-heading" class="card-title">
+              <span aria-hidden="true">&#128200;</span> Current Simulation Breakdown
+            </h2>
+            <div class="chart-legend" aria-hidden="true">
+              <div class="legend-item"><span class="legend-color" style="background:#9e6b55;"></span> Incoming</div>
+              <div class="legend-item"><span class="legend-color" style="background:#15803d;"></span> Accepted</div>
+              <div class="legend-item"><span class="legend-color" style="background:#b91c1c;"></span> Dropped</div>
+              <div class="legend-item"><span class="legend-color" style="background:#52657e;"></span> Capacity</div>
+            </div>
+          </div>
+          <div id="current-chart-container" class="chart-container" aria-label="Bar chart showing incoming, accepted, dropped, and capacity metrics">
+            <!-- Dynamic SVG Chart injected by monitoring.js -->
+          </div>
+        </section>
+
+        <!-- Scenario Comparison Chart -->
+        <section class="card chart-card" aria-labelledby="chart-comparison-heading">
+          <div class="card-title-row chart-header">
+            <h2 id="chart-comparison-heading" class="card-title">
+              <span aria-hidden="true">&#9878;</span> Scenario Comparison
+            </h2>
+            <div class="chart-legend" aria-hidden="true">
+              <div class="legend-item"><span class="legend-color" style="background:#9e6b55;"></span> Incoming</div>
+              <div class="legend-item"><span class="legend-color" style="background:#15803d;"></span> Accepted</div>
+              <div class="legend-item"><span class="legend-color" style="background:#b91c1c;"></span> Dropped</div>
+            </div>
+          </div>
+          <div id="comparison-chart-container" class="chart-container" aria-label="Bar chart comparing baseline traffic without attack versus traffic with attack">
+            <!-- Dynamic SVG Chart injected by monitoring.js -->
+          </div>
+        </section>
+
+        <!-- Mathematical Model Specification Card -->
+        <section class="model-details-card" aria-labelledby="model-specs-heading">
+          <h3 id="model-specs-heading">&#128218; Educational Simulation Specifications</h3>
+          <div class="model-formula-grid">
+            <div class="formula-chip">
+              <span class="formula-chip-label">Incoming Traffic</span>
+              <span class="formula-chip-val">Incoming = Legitimate + Attack</span>
+            </div>
+            <div class="formula-chip">
+              <span class="formula-chip-label">Accepted Requests</span>
+              <span class="formula-chip-val">Accepted = min(Incoming, Capacity)</span>
+            </div>
+            <div class="formula-chip">
+              <span class="formula-chip-label">Dropped Requests</span>
+              <span class="formula-chip-val">Dropped = Incoming - Accepted</span>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>Cryptography and System Security (CSS) Project &bull; Module: DoS Simulation + Monitoring</p>
+    </footer>
+  </div>
+
+  <!-- Module Script -->
+  <script src="monitoring.js"></script>
+</body>
+</html>
