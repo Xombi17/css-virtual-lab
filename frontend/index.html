@@ -266,29 +266,35 @@
             <article class="lesson" id="simulation" data-title="Interactive Simulation">
                 
                 <h2>Interactive Simulation</h2>
-                <p>Change the inputs, select a scenario and observe how
-                the traffic load affects the server.</p>
+                <p>Change the inputs, select a scenario and press
+                <strong>Run Simulation</strong>. While the simulation is running,
+                any valid change you make updates the live demonstration automatically.</p>
 
                 <div class="input-grid">
-                    <label>Legitimate traffic (req/sec)
-                        <input id="legitimateRate" type="number" min="0"
-                               max="100000" value="20">
+                    <label data-used-in="normal dos ddos">Legitimate traffic (req/sec)
+                        <input id="legitimateRate" type="number" min="0" step="1"
+                               max="100000" value="20" inputmode="numeric">
+                        <small class="field-hint">Requests per second sent by real users.</small>
                     </label>
-                    <label>Server capacity (req/sec)
-                        <input id="capacity" type="number" min="1"
-                               max="100000" value="100">
+                    <label data-used-in="normal dos ddos">Server capacity (req/sec)
+                        <input id="capacity" type="number" min="1" step="1"
+                               max="100000" value="100" inputmode="numeric">
+                        <small class="field-hint">Requests the server can process each second.</small>
                     </label>
-                    <label>DoS attack rate (req/sec)
-                        <input id="dosRate" type="number" min="0"
-                               max="100000" value="120">
+                    <label data-used-in="dos">DoS attack rate (req/sec)
+                        <input id="dosRate" type="number" min="0" step="1"
+                               max="100000" value="120" inputmode="numeric">
+                        <small class="field-hint">DoS only: one attacking source sends this many req/sec.</small>
                     </label>
-                    <label>DDoS source count
-                        <input id="attackerCount" type="number" min="0"
-                               max="1000" value="5">
+                    <label data-used-in="ddos">DDoS source count
+                        <input id="attackerCount" type="number" min="0" step="1"
+                               max="1000" value="5" inputmode="numeric">
+                        <small class="field-hint">DDoS only: number of attacking sources (whole number).</small>
                     </label>
-                    <label>Rate per source (req/sec)
-                        <input id="ratePerSource" type="number" min="0"
-                               max="100000" value="40">
+                    <label data-used-in="ddos">Rate per source (req/sec)
+                        <input id="ratePerSource" type="number" min="0" step="1"
+                               max="100000" value="40" inputmode="numeric">
+                        <small class="field-hint">DDoS only: requests per second from each attacking source.</small>
                     </label>
                     <label id="protectionLabel">Rate Limit Protection
                         <span style="display:flex; align-items:center; gap:8px; margin-top:8px;">
@@ -297,8 +303,11 @@
                         </span>
                     </label>
                     <label id="perSourceLimitGroup" style="display:none;">Per-source limit (req/sec)
-                        <input id="perSourceLimit" type="number" min="0"
-                               max="100000" value="10">
+                        <input id="perSourceLimit" type="number" min="0" step="1"
+                               max="100000" value="10" inputmode="numeric">
+                        <small class="field-hint">Each source may send at most this many req/sec;
+                        anything above it is blocked. The rule only counts requests per
+                        source &mdash; it cannot tell which requests are malicious.</small>
                     </label>
                 </div>
 
@@ -312,9 +321,83 @@
                 <button id="runSimulation" class="primary-button">
                     Run Simulation
                 </button>
+
+                <div class="sim-controls" role="group" aria-label="Simulation playback controls">
+                    <button id="pauseButton" class="control-button" type="button" aria-pressed="false" disabled>&#9208; Pause</button>
+                    <button id="stepButton" class="control-button" type="button" disabled
+                            title="Advance one simulated second while paused">&#9197; Step 1 s</button>
+                    <button id="resetButton" class="control-button" type="button"
+                            title="Stop the simulation and restore the default values">&#8634; Reset</button>
+                    <label class="slow-toggle">
+                        <input id="slowMotion" type="checkbox">
+                        Slow animation (for explaining)
+                    </label>
+                    <span class="sim-clock" id="simClock">Simulation time: 0 s</span>
+                </div>
+
                 <p id="message" class="message" role="status" aria-live="polite">
                     Ready to run the simulation.
                 </p>
+
+                <section class="server-status-card" aria-labelledby="serverStatusHeading">
+                    <div class="status-card-header">
+                        <h3 id="serverStatusHeading">Server Status</h3>
+                        <div class="status-chips">
+                            <span class="chip scenario-chip" id="scenarioChip">Scenario: Normal</span>
+                            <span class="chip server-chip">Server:
+                                <strong id="status" class="status normal">Within capacity</strong>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="scene-wrap" id="sceneWrap">
+                        <canvas id="trafficCanvas" role="img"
+                                aria-label="Live traffic diagram"></canvas>
+                        <div class="scene-overlay" id="sceneOverlay">
+                            Press <strong>Run Simulation</strong> to start the live demonstration.
+                        </div>
+                        <span class="paused-badge" id="pausedBadge" hidden>Paused</span>
+                    </div>
+                    <p class="scene-scale" id="sceneScale">
+                        Moving dots are representative requests, not one dot per request.
+                    </p>
+
+                    <ul class="legend" aria-label="Diagram legend">
+                        <li><span class="lg-dot legit" aria-hidden="true"></span>Legitimate request (round dot)</li>
+                        <li><span class="lg-dot attack" aria-hidden="true"></span>Attack request (diamond)</li>
+                        <li><span class="lg-path processed" aria-hidden="true"></span>To <strong>Processed</strong>: accepted by the server</li>
+                        <li><span class="lg-path dropped" aria-hidden="true"></span>To <strong>Dropped</strong>: over capacity</li>
+                        <li><span class="lg-path blocked" aria-hidden="true"></span>To <strong>Blocked</strong>: stopped by the protection rule</li>
+                    </ul>
+
+                    <div class="gauge-grid">
+                        <div class="gauge">
+                            <div class="gauge-head">
+                                <span>Processed load</span>
+                                <strong id="processedText">20 / 100 req/sec</strong>
+                            </div>
+                            <div class="gauge-track" aria-hidden="true">
+                                <div class="gauge-fill normal" id="processedFill"></div>
+                            </div>
+                            <small id="processedPct">20% of capacity in use (scale 0&ndash;100%)</small>
+                        </div>
+                        <div class="gauge">
+                            <div class="gauge-head">
+                                <span>Offered load (reaching the server)</span>
+                                <strong id="offeredText">20 req/sec &middot; 20%</strong>
+                            </div>
+                            <div class="gauge-track offered" aria-hidden="true">
+                                <div class="gauge-fill normal" id="offeredFill"></div>
+                                <span class="gauge-mark"><span>100%</span></span>
+                            </div>
+                            <small id="offeredNote">Scale 0&ndash;200% of capacity; the marker shows capacity.</small>
+                        </div>
+                    </div>
+
+                    <p class="status-summary" id="statusSummary">
+                        20 requests arrive each second. The server can process 100, so all 20 are processed.
+                    </p>
+                </section>
 
                 <div class="result-grid">
                     <div class="result-card">
@@ -323,7 +406,7 @@
                         <small>requests/sec</small>
                     </div>
                     <div class="result-card">
-                        <p>Accepted</p>
+                        <p>Accepted (processed)</p>
                         <strong id="accepted">20</strong>
                         <small>requests/sec</small>
                     </div>
@@ -337,81 +420,100 @@
                         <strong id="blocked">0</strong>
                         <small>requests/sec</small>
                     </div>
+                    <div class="result-card">
+                        <p>Legitimate processed</p>
+                        <strong id="legitServed">20</strong>
+                        <small id="legitServedNote">of 20 legitimate req/sec</small>
+                    </div>
+                </div>
+                <p class="equation" id="equationLine">20 incoming = 20 accepted + 0 dropped + 0 blocked</p>
+
+                <div class="bars-block">
+                    <div class="bars-head">
+                        <span>Request rates on one shared scale</span>
+                        <span id="barScaleLabel">Scale: 0 &ndash; 100 req/sec</span>
+                    </div>
+                    <div class="chart-row">
+                        <span>Incoming</span>
+                        <div class="bar-track"><div id="incomingBar" class="bar incoming-bar"></div><span class="cap-marker"></span></div>
+                        <strong id="incomingLabel">20</strong>
+                    </div>
+                    <div class="chart-row">
+                        <span>Accepted</span>
+                        <div class="bar-track"><div id="acceptedBar" class="bar accepted-bar"></div><span class="cap-marker"></span></div>
+                        <strong id="acceptedLabel">20</strong>
+                    </div>
+                    <div class="chart-row">
+                        <span>Dropped</span>
+                        <div class="bar-track"><div id="droppedBar" class="bar dropped-bar"></div><span class="cap-marker"></span></div>
+                        <strong id="droppedLabel">0</strong>
+                    </div>
+                    <div class="chart-row" id="blockedChartRow">
+                        <span>Blocked</span>
+                        <div class="bar-track"><div id="blockedBar" class="bar blocked-bar"></div><span class="cap-marker"></span></div>
+                        <strong id="blockedLabel">0</strong>
+                    </div>
+                    <div class="chart-row bar-axis" aria-hidden="true">
+                        <span></span>
+                        <div class="bar-axis-labels"><span>0</span><span id="barAxisMid">50</span><span id="barAxisMax">100</span></div>
+                        <span></span>
+                    </div>
+                    <p class="muted bars-note">The dashed line on each bar marks server capacity
+                    (<span id="barCapacityText">100</span> req/sec).</p>
                 </div>
 
-                <div class="status-line">
-                    <span>Server status</span>
-                    <strong id="status" class="status normal">Normal</strong>
+                <div class="info-box explain-box">
+                    <strong class="explain-title">What is happening?</strong>
+                    <p id="explanation">All incoming requests fit within the configured capacity.</p>
                 </div>
 
-                <div class="chart-row">
-                    <span>Incoming</span>
-                    <div class="bar-track"><div id="incomingBar" class="bar incoming-bar"></div></div>
-                    <strong id="incomingLabel">20</strong>
-                </div>
-                <div class="chart-row">
-                    <span>Accepted</span>
-                    <div class="bar-track"><div id="acceptedBar" class="bar accepted-bar"></div></div>
-                    <strong id="acceptedLabel">20</strong>
-                </div>
-                <div class="chart-row">
-                    <span>Dropped</span>
-                    <div class="bar-track"><div id="droppedBar" class="bar dropped-bar"></div></div>
-                    <strong id="droppedLabel">0</strong>
-                </div>
-                <div class="chart-row" id="blockedChartRow">
-                    <span>Blocked</span>
-                    <div class="bar-track"><div id="blockedBar" class="bar blocked-bar"></div></div>
-                    <strong id="blockedLabel">0</strong>
-                </div>
+                <section class="live-card" aria-labelledby="chartHeading">
+                    <div class="live-card-head">
+                        <h3 id="chartHeading">Live traffic chart</h3>
+                        <span class="muted">Last 60 simulated seconds</span>
+                    </div>
+                    <div class="chart-wrap" id="chartWrap">
+                        <canvas id="trafficChart" role="img"
+                                aria-label="Line chart of incoming, accepted, dropped and blocked requests per second over simulation time, with a dashed server capacity line."></canvas>
+                    </div>
+                    <ul class="legend chart-legend" aria-label="Chart legend">
+                        <li><span class="lg-line incoming" aria-hidden="true"></span>Incoming</li>
+                        <li><span class="lg-line accepted" aria-hidden="true"></span>Accepted</li>
+                        <li><span class="lg-line dropped" aria-hidden="true"></span>Dropped</li>
+                        <li><span class="lg-line blocked" aria-hidden="true"></span>Blocked</li>
+                        <li><span class="lg-line capacity" aria-hidden="true"></span>Server capacity (dashed)</li>
+                    </ul>
+                </section>
 
-                <div id="explanation" class="info-box">
-                    All incoming requests fit within the configured capacity.
+                <div class="live-grid">
+                    <section class="live-card" aria-labelledby="logHeading">
+                        <div class="live-card-head">
+                            <h3 id="logHeading">Event log</h3>
+                            <span class="muted">Newest first</span>
+                        </div>
+                        <ol class="event-log" id="eventLog" aria-live="polite"></ol>
+                    </section>
+
+                    <section class="live-card" aria-labelledby="termsHeading">
+                        <div class="live-card-head">
+                            <h3 id="termsHeading">Key terms</h3>
+                        </div>
+                        <dl class="glossary">
+                            <dt>Request</dt>
+                            <dd>A message asking the server to do something, such as load a page.</dd>
+                            <dt>Capacity</dt>
+                            <dd>The number of requests the server can process each second.</dd>
+                            <dt>Accepted</dt>
+                            <dd>Requests the server processed &mdash; including attack requests that were not blocked.</dd>
+                            <dt>Dropped</dt>
+                            <dd>Requests not processed because capacity is exceeded.</dd>
+                            <dt>Blocked</dt>
+                            <dd>Requests rejected by the protection rule before reaching the server.</dd>
+                            <dt>Offered load</dt>
+                            <dd>Traffic reaching the server compared with its capacity. It can go above 100%.</dd>
+                        </dl>
+                    </section>
                 </div>
-                
-<div class="traffic-visualization" id="trafficVisualization" hidden>
-    <div class="traffic-visual-heading">
-        <div>
-            <h3 id="visualTitle">Normal Traffic: Client-to-Server Transfer</h3>
-            <p id="visualDescription">Run the simulation to visualize the traffic flow.</p>
-        </div>
-        <span class="visual-live-label">SIMULATION OUTPUT</span>
-    </div>
-
-    <div class="traffic-topology" id="trafficTopology" aria-live="polite"></div>
-
-    <div class="visual-metrics">
-        <div>
-            <span>Incoming</span>
-            <strong id="visualIncoming">0</strong>
-            <small>requests/sec</small>
-        </div>
-        <div>
-            <span>Accepted</span>
-            <strong id="visualAccepted">0</strong>
-            <small>requests/sec</small>
-        </div>
-        <div>
-            <span>Dropped</span>
-            <strong id="visualDropped">0</strong>
-            <small>requests/sec</small>
-        </div>
-        <div>
-            <span>Blocked</span>
-            <strong id="visualBlocked">0</strong>
-            <small>requests/sec</small>
-        </div>
-        <div>
-            <span>Capacity</span>
-            <strong id="visualCapacity">0</strong>
-            <small>requests/sec</small>
-        </div>
-    </div>
-
-    <p class="visual-status" id="visualStatus" role="status">
-        Run the simulation to see the results.
-    </p>
-</div>
 
                 <p class="muted">Educational simulation only. No real attack
                 traffic is generated. Attack settings are illustrative sample data.</p>
