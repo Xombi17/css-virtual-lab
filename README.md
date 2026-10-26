@@ -76,6 +76,25 @@ Upon completing this virtual laboratory experiment, students will be able to:
 - **LO4 (Apply):** Configure upstream per-source rate limiting and calculate mathematical request filtering thresholds.
 - **LO5 (Critique):** Assess the architectural limitations of per-source rate limiting against distributed botnets whose individual nodes transmit below the detection threshold.
 
+### 2.4 Faculty Evaluation Spreadsheet Submission Links
+
+The table below provides the direct values and raw GitHub URLs corresponding to each required column in the Google Sheet evaluation tracker:
+
+| Spreadsheet Column Header | Submission Value / Direct GitHub Raw URL | Local Project File |
+|---|---|---|
+| **Batch** | `A` *(or assigned batch)* | - |
+| **Project Title** | `Demonstrate the DoS and DDoS attack` | - |
+| **Github Link** | `https://github.com/Xombi17/css-virtual-lab` | Repository Root |
+| **Aim** | `https://raw.githubusercontent.com/Xombi17/css-virtual-lab/refs/heads/main/docs/aim.md` | [`docs/aim.md`](file:///c:/Users/komal/Desktop/Desktopp/ddos/css-virtual-lab/docs/aim.md) |
+| **Theory** | `https://raw.githubusercontent.com/Xombi17/css-virtual-lab/refs/heads/main/docs/theory.md` | [`docs/theory.md`](file:///c:/Users/komal/Desktop/Desktopp/ddos/css-virtual-lab/docs/theory.md) |
+| **Objective** | `https://raw.githubusercontent.com/Xombi17/css-virtual-lab/refs/heads/main/docs/objective.md` | [`docs/objective.md`](file:///c:/Users/komal/Desktop/Desktopp/ddos/css-virtual-lab/docs/objective.md) |
+| **Procedure** | `https://raw.githubusercontent.com/Xombi17/css-virtual-lab/refs/heads/main/docs/procedure.md` | [`docs/procedure.md`](file:///c:/Users/komal/Desktop/Desktopp/ddos/css-virtual-lab/docs/procedure.md) |
+| **Simulation** | `https://raw.githubusercontent.com/Xombi17/css-virtual-lab/refs/heads/main/docs/simulation.md` | [`docs/simulation.md`](file:///c:/Users/komal/Desktop/Desktopp/ddos/css-virtual-lab/docs/simulation.md) |
+| **Quiz (If present in frontend put NULL)** | `NULL` *(or `https://raw.githubusercontent.com/Xombi17/css-virtual-lab/refs/heads/main/docs/assignment.md`)* | [`docs/assignment.md`](file:///c:/Users/komal/Desktop/Desktopp/ddos/css-virtual-lab/docs/assignment.md) / `index.html#assessmentSection` |
+| **References** | `https://raw.githubusercontent.com/Xombi17/css-virtual-lab/refs/heads/main/docs/references.md` | [`docs/references.md`](file:///c:/Users/komal/Desktop/Desktopp/ddos/css-virtual-lab/docs/references.md) |
+
+> **IMPORTANT GITHUB VISIBILITY NOTE:** Ensure the GitHub repository (`Xombi17/css-virtual-lab`) is set to **Public** under *GitHub Repo Settings &rarr; General &rarr; Danger Zone &rarr; Change repository visibility &rarr; Make public* so that the evaluation links can be accessed by the faculty without 404 authentication restrictions.
+
 ---
 
 ## 3. Compliance with Virtual Lab Guidelines
