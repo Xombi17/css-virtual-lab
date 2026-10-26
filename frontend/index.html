@@ -417,6 +417,133 @@
                 traffic is generated. Attack settings are illustrative sample data.</p>
             </article>
 
+            <!-- Video Demonstration 1: Normal Traffic -->
+            <article class="lesson" id="video-normal" data-title="Video: Normal Traffic">
+                <p class="section-label">EXPERIMENT 02 — VIDEO DEMO 1</p>
+                <h2>Video Demonstration: Normal Network Traffic</h2>
+
+                <div class="video-nav-pills">
+                    <button type="button" class="video-pill active" onclick="showResource('video-normal')">▶ 1. Normal Traffic</button>
+                    <button type="button" class="video-pill" onclick="showResource('video-dos')">▶ 2. DoS Attack</button>
+                    <button type="button" class="video-pill" onclick="showResource('video-ddos')">▶ 3. DDoS & Mitigation</button>
+                </div>
+
+                <div class="video-container">
+                    <video class="video-player" controls preload="metadata" playsinline>
+                        <source src="videos/normal_traffic.mp4" type="video/mp4">
+                        Your browser does not support HTML5 video playback.
+                    </video>
+                    <div class="video-caption">
+                        <span><strong>Scenario:</strong> Legitimate Network Traffic Flow</span>
+                        <span><code>videos/normal_traffic.mp4</code></span>
+                    </div>
+                </div>
+
+                <h3>Overview & Key Concepts</h3>
+                <p>
+                    In this video demonstration, observe how legitimate user packets travel from client workstations across the network to the central server under normal operating conditions.
+                </p>
+
+                <div class="info-box">
+                    <strong>Key Observations:</strong>
+                    <ul>
+                        <li><strong>Safe Capacity Margin:</strong> The aggregate volume of legitimate client requests remains within the server's processing threshold.</li>
+                        <li><strong>100% Request Acceptance:</strong> Arriving requests are serviced smoothly without delay, buffer queuing, or backpressure.</li>
+                        <li><strong>Zero Drop Rate:</strong> The drop percentage stays at 0.0%, guaranteeing high service availability and uninterrupted user experience.</li>
+                    </ul>
+                </div>
+
+                <div class="formula">
+                    <strong>Mathematical Governing Condition:</strong><br>
+                    <code>Total Arriving Traffic &le; Server Capacity &rArr; Accepted = Total Arriving, Dropped = 0</code>
+                </div>
+            </article>
+
+            <!-- Video Demonstration 2: DoS Attack -->
+            <article class="lesson" id="video-dos" data-title="Video: DoS Attack">
+                <p class="section-label">EXPERIMENT 02 — VIDEO DEMO 2</p>
+                <h2>Video Demonstration: Denial of Service (DoS) Flood</h2>
+
+                <div class="video-nav-pills">
+                    <button type="button" class="video-pill" onclick="showResource('video-normal')">▶ 1. Normal Traffic</button>
+                    <button type="button" class="video-pill active" onclick="showResource('video-dos')">▶ 2. DoS Attack</button>
+                    <button type="button" class="video-pill" onclick="showResource('video-ddos')">▶ 3. DDoS & Mitigation</button>
+                </div>
+
+                <div class="video-container">
+                    <video class="video-player" controls preload="metadata" playsinline>
+                        <source src="videos/dos_attack.mp4" type="video/mp4">
+                        Your browser does not support HTML5 video playback.
+                    </video>
+                    <div class="video-caption">
+                        <span><strong>Scenario:</strong> Single-Source DoS Flooding</span>
+                        <span><code>videos/dos_attack.mp4</code></span>
+                    </div>
+                </div>
+
+                <h3>Overview & Key Concepts</h3>
+                <p>
+                    Watch how a single malicious host generates a massive flood of requests targeting the destination server, consuming shared network buffers and computational resources.
+                </p>
+
+                <div class="info-box">
+                    <strong>Key Observations:</strong>
+                    <ul>
+                        <li><strong>Resource Exhaustion:</strong> An individual high-rate attacking source transmits at an excessive volume that rapidly overtakes server capacity.</li>
+                        <li><strong>Collateral Damage to Legitimate Users:</strong> In an unmitigated environment, legitimate requests must compete with attack packets for finite server capacity and are dropped proportionally.</li>
+                        <li><strong>Severe Service Degradation:</strong> Utilization caps out at 100%, request drops spike, and legitimate users experience timeouts and connection failures.</li>
+                    </ul>
+                </div>
+
+                <div class="formula">
+                    <strong>Mathematical Governing Condition:</strong><br>
+                    <code>Total Traffic &gt; Server Capacity &rArr; Dropped = Total Traffic - Server Capacity &gt; 0</code>
+                </div>
+            </article>
+
+            <!-- Video Demonstration 3: DDoS Attack & Defense -->
+            <article class="lesson" id="video-ddos" data-title="Video: DDoS & Defense">
+                <p class="section-label">EXPERIMENT 02 — VIDEO DEMO 3</p>
+                <h2>Video Demonstration: Distributed DoS (DDoS) & Rate Limiting</h2>
+
+                <div class="video-nav-pills">
+                    <button type="button" class="video-pill" onclick="showResource('video-normal')">▶ 1. Normal Traffic</button>
+                    <button type="button" class="video-pill" onclick="showResource('video-dos')">▶ 2. DoS Attack</button>
+                    <button type="button" class="video-pill active" onclick="showResource('video-ddos')">▶ 3. DDoS & Mitigation</button>
+                </div>
+
+                <div class="video-container">
+                    <video class="video-player" controls preload="metadata" playsinline>
+                        <source src="videos/ddos_attack.mp4" type="video/mp4">
+                        Your browser does not support HTML5 video playback.
+                    </video>
+                    <div class="video-caption">
+                        <span><strong>Scenario:</strong> Multi-Source Botnet Attack & Rate Limiter Defense</span>
+                        <span><code>videos/ddos_attack.mp4</code></span>
+                    </div>
+                </div>
+
+                <h3>Overview & Key Concepts</h3>
+                <p>
+                    Observe a coordinated Distributed Denial of Service (DDoS) attack launched from multiple distributed bot nodes simultaneously, followed by upstream per-source rate-limiting mitigation.
+                </p>
+
+                <div class="info-box">
+                    <strong>Key Observations:</strong>
+                    <ul>
+                        <li><strong>Distributed Botnet Power:</strong> Multiple attacking nodes generate traffic simultaneously. Even if each individual bot stays under typical alert levels, their cumulative volume easily overloads destination servers.</li>
+                        <li><strong>Per-Source Rate Limiting Defense:</strong> An upstream filter inspects arrival rates per source IP. Nodes exceeding the configured threshold have their excess requests blocked before reaching origin infrastructure.</li>
+                        <li><strong>Service Preservation:</strong> Blocked attack traffic reduces incoming load below server capacity, allowing legitimate client traffic to be accepted with 0% drop rate.</li>
+                    </ul>
+                </div>
+
+                <div class="formula">
+                    <strong>Mathematical Governing Condition with Rate Limiting:</strong><br>
+                    <code>Attack Allowed = Attacker Count &times; min(Rate Per Source, Per-Source Limit)</code><br>
+                    <code>Blocked Requests = Total Offered Attack - Attack Allowed</code>
+                </div>
+            </article>
+
             <article class="lesson" id="assessment" data-title="Assessment">
                 
                 <h2>Assessment</h2>

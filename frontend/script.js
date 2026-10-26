@@ -11,6 +11,9 @@ const resources = [
     { id: "theory", title: "Theory - DoS and DDoS", type: "all", icon: "▤" },
     { id: "procedure", title: "Procedure - Traffic Simulation", type: "all", icon: "▤" },
     { id: "simulation", title: "Interactive Traffic Simulation", type: "interactive", icon: "▣" },
+    { id: "video-normal", title: "Video 1: Normal Traffic", type: "video", icon: "▶" },
+    { id: "video-dos", title: "Video 2: DoS Attack", type: "video", icon: "▶" },
+    { id: "video-ddos", title: "Video 3: DDoS & Mitigation", type: "video", icon: "▶" },
     { id: "assessment", title: "Assessment - Quiz", type: "interactive", icon: "✓" },
     { id: "feedback", title: "Feedback & References", type: "all", icon: "▤" }
 ];
@@ -25,6 +28,13 @@ function showResource(id) {
     if (index < 0) return;
 
     currentIndex = index;
+
+    // Pause any playing videos when switching lessons
+    document.querySelectorAll("video").forEach((v) => {
+        if (!v.paused) {
+            v.pause();
+        }
+    });
 
     document.querySelectorAll(".lesson").forEach((lesson) => {
         lesson.classList.toggle("active", lesson.id === id);
@@ -55,6 +65,7 @@ function showResource(id) {
         });
     }
 }
+window.showResource = showResource;
 
 function renderResources() {
     const list = $("resourceList");

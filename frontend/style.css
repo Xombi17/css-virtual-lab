@@ -696,3 +696,80 @@ body.menu-collapsed .resources { display: none; }
         margin: 10px 0;
     }
 }
+
+/* ==========================================
+   VIDEO DEMONSTRATION SECTION
+   ========================================== */
+.video-container {
+    margin: 20px 0 24px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #1a1816;
+    box-shadow: 0 4px 18px rgba(48, 45, 43, 0.14);
+    border: 1px solid var(--border);
+}
+
+.video-player {
+    width: 100%;
+    max-height: 480px;
+    display: block;
+    background: #000;
+    outline: none;
+}
+
+.video-caption {
+    padding: 12px 18px;
+    background: var(--cream);
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.video-caption code {
+    background: #fff;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--brown-dark);
+}
+
+.video-nav-pills {
+    display: flex;
+    gap: 10px;
+    margin: 16px 0 24px;
+    flex-wrap: wrap;
+}
+
+.video-pill {
+    padding: 9px 18px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--brown);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.video-pill:hover {
+    background: var(--cream);
+    border-color: var(--brown);
+}
+
+.video-pill.active {
+    background: var(--brown);
+    color: white;
+    border-color: var(--brown);
+    box-shadow: 0 2px 6px rgba(166, 125, 105, 0.3);
+}
+
