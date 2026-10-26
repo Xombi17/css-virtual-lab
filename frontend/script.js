@@ -68,6 +68,10 @@ function showResource(id) {
     document.dispatchEvent(
         new CustomEvent("lessonShown", { detail: { id } })
     );
+
+    if (typeof markSectionVisited === "function") {
+        markSectionVisited(id);
+    }
 }
 window.showResource = showResource;
 
@@ -2163,12 +2167,587 @@ if (feedbackForm) {
 }
 
 // ==========================================
-// 7. INITIAL PAGE SETUP
+// 7. GUIDED ONBOARDING TOUR & LEARNING PATH
+// ==========================================
+
+const LEARNING_PATH_ITEMS = [
+    { id: "aim", name: "Aim & Objectives" },
+    { id: "theory", name: "Theory - DoS & DDoS" },
+    { id: "procedure", name: "Procedure - Steps" },
+    { id: "simulation", name: "Interactive Simulation" },
+    { id: "assessment", name: "Assessment Quiz" },
+    { id: "feedback", name: "Feedback & References" }
+];
+
+function getVisitedSections() {
+    try {
+        const stored = localStorage.getItem("css_lab_visited_sections");
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) return parsed;
+        }
+    } catch (e) {
+        // ignore
+    }
+    return ["aim"];
+}
+
+function markSectionVisited(id) {
+    if (!LEARNING_PATH_ITEMS.some((item) => item.id === id)) return;
+    try {
+        const visited = getVisitedSections();
+        if (!visited.includes(id)) {
+            visited.push(id);
+            localStorage.setItem("css_lab_visited_sections", JSON.stringify(visited));
+        }
+        updateLearningPathUI(visited);
+    } catch (e) {
+        // storage fallback
+    }
+}
+
+function updateLearningPathUI(visitedList) {
+    const listEl = $("learningPathList");
+    const countEl = $("learningPathCount");
+    const fillEl = $("learningProgressFill");
+    const barWrap = $("learningProgressBar");
+    if (!listEl) return;
+
+    const visited = visitedList || getVisitedSections();
+    const total = LEARNING_PATH_ITEMS.length;
+    const completed = LEARNING_PATH_ITEMS.filter((item) => visited.includes(item.id)).length;
+    const pct = Math.round((completed / total) * 100);
+
+    if (countEl) {
+        countEl.textContent = completed === total ? "🎉 All 6 Done!" : `${completed} / ${total}`;
+    }
+    if (fillEl) {
+        fillEl.style.width = `${pct}%`;
+    }
+    if (barWrap) {
+        barWrap.setAttribute("aria-valuenow", String(pct));
+    }
+
+    listEl.replaceChildren();
+    LEARNING_PATH_ITEMS.forEach((item) => {
+        const isDone = visited.includes(item.id);
+        const li = document.createElement("li");
+        li.className = `learning-item ${isDone ? "completed" : ""}`;
+        li.setAttribute("role", "button");
+        li.tabIndex = 0;
+        li.title = `Jump to ${item.name}`;
+
+        const check = document.createElement("span");
+        check.className = "learning-check";
+        check.textContent = isDone ? "✓" : "";
+        check.setAttribute("aria-hidden", "true");
+
+        const name = document.createElement("span");
+        name.className = "learning-name";
+        name.textContent = item.name;
+
+        li.append(check, name);
+
+        const navigate = () => {
+            showResource(item.id);
+        };
+
+        li.addEventListener("click", navigate);
+        li.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                navigate();
+            }
+        });
+
+        listEl.appendChild(li);
+    });
+}
+
+// ------------------------------------------
+// Tour Steps Definition (Modular Array)
+// ------------------------------------------
+const tourSteps = [
+    {
+        id: "welcome",
+        selector: null,
+        title: "Welcome to the DoS & DDoS Virtual Lab! 👋",
+        text: "A Denial of Service (DoS) attack floods a server with requests so real users can't get through. In Distributed DoS (DDoS), the attack is launched by hundreds or thousands of devices at once! By the end of this lab, you will be able to spot an attack, tell DoS from DDoS, and defend your server.",
+        analogy: "Think of a server as a shop counter with 1 cashier. Requests are customers waiting to order. Normal traffic is polite customers arriving within the cashier's processing capacity."
+    },
+    {
+        id: "header",
+        selector: ".topbar",
+        title: "Navigation & Quick Actions 🧭",
+        text: "The header shows your subject and course. Use the back arrow (←) to return to the laboratory list, or the Share button (↗) to copy a direct link to this experiment for your lab partner."
+    },
+    {
+        id: "navigator",
+        selector: ".toolbar",
+        title: "Experiment Manual & Page Navigator 📖",
+        text: "This workbook guides you step-by-step through the lab curriculum. Use the '‹' and '›' buttons or check the page counter (e.g. 1 / 9) to advance sequentially through the chapters."
+    },
+    {
+        id: "menu",
+        selector: "#menuButton",
+        title: "Sidebar Menu Toggle ☰",
+        text: "Click this hamburger menu button anytime to collapse the sidebar for a distraction-free, full-width simulation view. Click it again to bring the sidebar back."
+    },
+    {
+        id: "sidebar",
+        selector: "#resourcesPanel",
+        title: "Explanation Resources & Filter Tabs 📑",
+        text: "Your complete curriculum directory! Filter resources with the All, Video, and Interactive tabs at the top to quickly jump between study texts, multimedia videos, and interactive simulations."
+    },
+    {
+        id: "aim",
+        selector: '[data-resource="aim"]',
+        fallbackSelector: "#aim",
+        title: "Aim & Objectives — What You'll Achieve 🎯",
+        text: "Start here to understand the core mission of this experiment: learn how data packets travel across networks, why servers have finite request capacities, and how excess volume affects service availability.",
+        onEnter: () => showResource("aim")
+    },
+    {
+        id: "theory",
+        selector: '[data-resource="theory"]',
+        fallbackSelector: "#theory",
+        title: "Theory — Understand Concepts First 📚",
+        text: "Explore network capacity, packet flow models, request queuing, and the key architectural differences between single-source DoS and distributed DDoS attacks.",
+        analogy: "DoS is like one aggressive person shouting 1,000 fake orders at the counter. DDoS is a huge hired mob shouting orders from every door at once, completely blocking legitimate customers!",
+        onEnter: () => showResource("theory")
+    },
+    {
+        id: "procedure",
+        selector: '[data-resource="procedure"]',
+        fallbackSelector: "#procedure",
+        title: "Procedure — Step-by-Step Instructions 📋",
+        text: "Follow these clear steps: set your legitimate traffic rate, choose an attack scenario, and observe packet arrivals, drops, and server capacity utilization.",
+        onEnter: () => showResource("procedure")
+    },
+    {
+        id: "simulation",
+        selector: "#simulation",
+        title: "Interactive Traffic Simulation — Play & Experiment! 🎮",
+        text: "This is your hands-on laboratory! Adjust customer request rates, test single vs. multi-attacker floods, toggle upstream rate limiting, and watch animated packets flow in real time.",
+        analogy: "Rate limiting is like placing a bouncer at the shop entrance: 'Maximum 10 orders per customer!' Greedy attackers get blocked outside while honest shoppers enter freely!",
+        onEnter: () => showResource("simulation")
+    },
+    {
+        id: "assessment",
+        selector: '[data-resource="assessment"]',
+        fallbackSelector: "#assessment",
+        title: "Assessment — Check What You Learned ✍️",
+        text: "Test your understanding with 10 interactive questions! Instant feedback highlights correct answers and explains the underlying cybersecurity principles.",
+        onEnter: () => showResource("assessment")
+    },
+    {
+        id: "feedback",
+        selector: '[data-resource="feedback"]',
+        fallbackSelector: "#feedback",
+        title: "Feedback & References — Tell Us What You Think 💬",
+        text: "Review trusted cybersecurity references from Cloudflare and textbooks, and submit your local feedback on this virtual lab experiment.",
+        onEnter: () => showResource("feedback")
+    },
+    {
+        id: "finish",
+        selector: null,
+        title: "🎉 You're Ready to Explore!",
+        text: "You know where everything is. You can jump straight into the live interactive simulation to launch an attack scenario, or start reading sequentially from Aim & Objectives.",
+        isFinish: true
+    }
+];
+
+let currentTourStep = 0;
+let isTourActive = false;
+let lastFocusedElement = null;
+
+function getTargetElement(step) {
+    if (!step || !step.selector) return null;
+    let el = document.querySelector(step.selector);
+    if (!el && step.fallbackSelector) {
+        el = document.querySelector(step.fallbackSelector);
+    }
+    if (el && el.offsetParent === null && el.offsetWidth === 0 && el.offsetHeight === 0) {
+        if (step.fallbackSelector) {
+            const fallback = document.querySelector(step.fallbackSelector);
+            if (fallback && fallback.offsetParent !== null) {
+                return fallback;
+            }
+        }
+    }
+    return el;
+}
+
+function positionTourStep(step) {
+    const overlay = $("tourOverlay");
+    const spotlight = $("tourSpotlight");
+    const tooltip = $("tourTooltip");
+    const arrow = $("tourArrow");
+    if (!overlay || !spotlight || !tooltip) return;
+
+    const target = getTargetElement(step);
+
+    if (!target) {
+        spotlight.classList.add("centered");
+        tooltip.classList.add("centered");
+        tooltip.removeAttribute("data-placement");
+        tooltip.style.top = "";
+        tooltip.style.left = "";
+        tooltip.style.right = "";
+        tooltip.style.bottom = "";
+        if (arrow) arrow.style.display = "none";
+        return;
+    }
+
+    spotlight.classList.remove("centered");
+    tooltip.classList.remove("centered");
+    if (arrow) arrow.style.display = "";
+
+    try {
+        target.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } catch (e) {
+        // fallback
+    }
+
+    const rect = target.getBoundingClientRect();
+    const pad = 6;
+    const sTop = Math.max(0, rect.top - pad);
+    const sLeft = Math.max(0, rect.left - pad);
+    const sWidth = rect.width + pad * 2;
+    const sHeight = rect.height + pad * 2;
+
+    spotlight.style.top = `${sTop}px`;
+    spotlight.style.left = `${sLeft}px`;
+    spotlight.style.width = `${sWidth}px`;
+    spotlight.style.height = `${sHeight}px`;
+
+    const tipWidth = Math.min(440, window.innerWidth - 24);
+    const tipHeight = tooltip.offsetHeight || 280;
+    const margin = 14;
+
+    const spaceBelow = window.innerHeight - (sTop + sHeight);
+    const spaceAbove = sTop;
+    const spaceRight = window.innerWidth - (sLeft + sWidth);
+    const spaceLeft = sLeft;
+
+    let placement = "bottom";
+    let top = 0;
+    let left = 0;
+
+    if (window.innerWidth > 960 && spaceRight >= tipWidth + margin) {
+        placement = "right";
+        top = Math.max(margin, Math.min(window.innerHeight - tipHeight - margin, sTop));
+        left = sLeft + sWidth + margin;
+    } else if (window.innerWidth > 960 && spaceLeft >= tipWidth + margin) {
+        placement = "left";
+        top = Math.max(margin, Math.min(window.innerHeight - tipHeight - margin, sTop));
+        left = sLeft - tipWidth - margin;
+    } else if (spaceBelow >= tipHeight + margin || spaceBelow >= spaceAbove) {
+        placement = "bottom";
+        top = Math.min(window.innerHeight - tipHeight - margin, sTop + sHeight + margin);
+        left = Math.max(margin, Math.min(window.innerWidth - tipWidth - margin, sLeft + sWidth / 2 - tipWidth / 2));
+    } else {
+        placement = "top";
+        top = Math.max(margin, sTop - tipHeight - margin);
+        left = Math.max(margin, Math.min(window.innerWidth - tipWidth - margin, sLeft + sWidth / 2 - tipWidth / 2));
+    }
+
+    tooltip.setAttribute("data-placement", placement);
+    tooltip.style.top = `${top}px`;
+    tooltip.style.left = `${left}px`;
+    tooltip.style.right = "auto";
+    tooltip.style.bottom = "auto";
+
+    if (arrow) {
+        if (placement === "bottom" || placement === "top") {
+            const arrowLeft = Math.max(24, Math.min(tipWidth - 24, sLeft + sWidth / 2 - left - 7));
+            arrow.style.left = `${arrowLeft}px`;
+            arrow.style.top = "";
+        } else {
+            const arrowTop = Math.max(24, Math.min(tipHeight - 24, sTop + sHeight / 2 - top - 7));
+            arrow.style.top = `${arrowTop}px`;
+            arrow.style.left = "";
+        }
+    }
+}
+
+function renderTourStep(stepIndex) {
+    if (stepIndex < 0 || stepIndex >= tourSteps.length) return;
+    currentTourStep = stepIndex;
+    const step = tourSteps[stepIndex];
+
+    if (typeof step.onEnter === "function") {
+        try {
+            step.onEnter();
+        } catch (e) {
+            console.error("Tour onEnter error", e);
+        }
+    }
+
+    const titleEl = $("tourTitle");
+    const textEl = $("tourText");
+    const badgeEl = $("tourBadge");
+    const analogyBox = $("tourAnalogyBox");
+    const analogyText = $("tourAnalogyText");
+    const finishActions = $("tourFinishActions");
+    const standardFooter = $("tourStandardFooter");
+    const backBtn = $("tourBackBtn");
+    const nextBtn = $("tourNextBtn");
+    const dotsContainer = $("tourDots");
+
+    if (titleEl) titleEl.textContent = step.title;
+    if (textEl) textEl.textContent = step.text;
+    if (badgeEl) badgeEl.textContent = `Step ${stepIndex + 1} of ${tourSteps.length}`;
+
+    if (analogyBox && analogyText) {
+        if (step.analogy) {
+            analogyText.textContent = step.analogy;
+            analogyBox.hidden = false;
+        } else {
+            analogyBox.hidden = true;
+        }
+    }
+
+    if (step.isFinish) {
+        if (finishActions) finishActions.hidden = false;
+        if (standardFooter) standardFooter.hidden = true;
+    } else {
+        if (finishActions) finishActions.hidden = true;
+        if (standardFooter) standardFooter.hidden = false;
+
+        if (backBtn) {
+            backBtn.disabled = stepIndex === 0;
+        }
+        if (nextBtn) {
+            nextBtn.textContent = stepIndex === tourSteps.length - 2 ? "Finish 🎉" : "Next ›";
+        }
+    }
+
+    if (dotsContainer) {
+        dotsContainer.replaceChildren();
+        tourSteps.forEach((s, idx) => {
+            const dot = document.createElement("button");
+            dot.type = "button";
+            dot.className = `tour-dot ${idx === stepIndex ? "active" : ""}`;
+            dot.setAttribute("aria-label", `Step ${idx + 1}: ${s.title}`);
+            dot.addEventListener("click", () => {
+                goToTourStep(idx);
+            });
+            dotsContainer.appendChild(dot);
+        });
+    }
+
+    setTimeout(() => {
+        positionTourStep(step);
+    }, 60);
+}
+
+function trapTourFocus(e) {
+    if (!isTourActive) return;
+    const tooltip = $("tourTooltip");
+    if (!tooltip) return;
+
+    if (e.key === "Escape") {
+        e.preventDefault();
+        skipTour();
+        return;
+    }
+
+    if (e.key === "ArrowRight") {
+        if (document.activeElement?.tagName !== "INPUT") {
+            e.preventDefault();
+            nextTourStep();
+            return;
+        }
+    }
+
+    if (e.key === "ArrowLeft") {
+        if (document.activeElement?.tagName !== "INPUT") {
+            e.preventDefault();
+            prevTourStep();
+            return;
+        }
+    }
+
+    if (e.key === "Tab") {
+        const focusables = tooltip.querySelectorAll(
+            'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+
+        if (e.shiftKey) {
+            if (document.activeElement === first) {
+                e.preventDefault();
+                last.focus();
+            }
+        } else {
+            if (document.activeElement === last) {
+                e.preventDefault();
+                first.focus();
+            }
+        }
+    }
+}
+
+function startTour(initialStep = 0) {
+    lastFocusedElement = document.activeElement;
+    isTourActive = true;
+    currentTourStep = initialStep;
+
+    const overlay = $("tourOverlay");
+    if (overlay) {
+        overlay.hidden = false;
+        overlay.removeAttribute("hidden");
+    }
+
+    const dontShowCheck = $("tourDontShowCheck");
+    if (dontShowCheck) {
+        dontShowCheck.checked = localStorage.getItem("css_lab_tour_dont_show") === "true";
+    }
+
+    renderTourStep(currentTourStep);
+
+    try {
+        localStorage.setItem("css_lab_tour_seen", "true");
+    } catch (e) {
+        // ignore
+    }
+
+    setTimeout(() => {
+        const nextBtn = $("tourNextBtn");
+        if (nextBtn && !nextBtn.hidden && !nextBtn.disabled) {
+            nextBtn.focus();
+        } else {
+            const firstBtn = $("tourTooltip")?.querySelector("button");
+            firstBtn?.focus();
+        }
+    }, 120);
+}
+
+function nextTourStep() {
+    if (currentTourStep < tourSteps.length - 1) {
+        goToTourStep(currentTourStep + 1);
+    } else {
+        closeTour();
+    }
+}
+
+function prevTourStep() {
+    if (currentTourStep > 0) {
+        goToTourStep(currentTourStep - 1);
+    }
+}
+
+function goToTourStep(index) {
+    renderTourStep(index);
+}
+
+function closeTour() {
+    isTourActive = false;
+    const overlay = $("tourOverlay");
+    if (overlay) {
+        overlay.hidden = true;
+        overlay.setAttribute("hidden", "");
+    }
+    if (lastFocusedElement && typeof lastFocusedElement.focus === "function") {
+        try {
+            lastFocusedElement.focus();
+        } catch (e) {
+            // ignore
+        }
+    }
+}
+
+function skipTour() {
+    closeTour();
+}
+
+window.startTour = startTour;
+window.closeTour = closeTour;
+
+// Event Listeners for Tour Controls
+if ($("startTourButton")) {
+    $("startTourButton").addEventListener("click", () => startTour(0));
+}
+if ($("floatingHelpBtn")) {
+    $("floatingHelpBtn").addEventListener("click", () => startTour(0));
+}
+if ($("tourCloseBtn")) {
+    $("tourCloseBtn").addEventListener("click", skipTour);
+}
+if ($("tourSkipBtn")) {
+    $("tourSkipBtn").addEventListener("click", skipTour);
+}
+if ($("tourBackBtn")) {
+    $("tourBackBtn").addEventListener("click", prevTourStep);
+}
+if ($("tourNextBtn")) {
+    $("tourNextBtn").addEventListener("click", nextTourStep);
+}
+if ($("tourStartSimBtn")) {
+    $("tourStartSimBtn").addEventListener("click", () => {
+        closeTour();
+        showResource("simulation");
+    });
+}
+if ($("tourStartAimBtn")) {
+    $("tourStartAimBtn").addEventListener("click", () => {
+        closeTour();
+        showResource("aim");
+    });
+}
+if ($("tourDontShowCheck")) {
+    $("tourDontShowCheck").addEventListener("change", (e) => {
+        try {
+            if (e.target.checked) {
+                localStorage.setItem("css_lab_tour_dont_show", "true");
+            } else {
+                localStorage.removeItem("css_lab_tour_dont_show");
+            }
+        } catch (err) {
+            // ignore
+        }
+    });
+}
+
+window.addEventListener("resize", () => {
+    if (isTourActive && tourSteps[currentTourStep]) {
+        positionTourStep(tourSteps[currentTourStep]);
+    }
+});
+
+window.addEventListener("scroll", () => {
+    if (isTourActive && tourSteps[currentTourStep]) {
+        positionTourStep(tourSteps[currentTourStep]);
+    }
+}, { passive: true });
+
+document.addEventListener("keydown", trapTourFocus);
+
+// ==========================================
+// 8. INITIAL PAGE SETUP
 // ==========================================
 
 renderResources();
 
-// Initialize the live simulation on page load
 if (typeof resetSimulation === "function") {
     resetSimulation({ announce: false });
+}
+
+// Initialize Learning Path on load
+updateLearningPathUI();
+
+// Auto-start tour on first visit
+try {
+    const tourSeen = localStorage.getItem("css_lab_tour_seen");
+    const dontShow = localStorage.getItem("css_lab_tour_dont_show");
+    if (!tourSeen && dontShow !== "true") {
+        setTimeout(() => {
+            startTour(0);
+        }, 700);
+    }
+} catch (e) {
+    // ignore
 }

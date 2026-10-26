@@ -15,7 +15,10 @@
         <h1>CSS Lab</h1>
         <p>• Virtual Network Security Lab • DoS & DDoS Simulation</p>
     </div>
-    <button class="share-button" id="shareButton">↗ Share</button>
+    <div class="topbar-actions">
+        <button class="tour-header-button" id="startTourButton" aria-label="Take Guided Tour">💡 Take Tour</button>
+        <button class="share-button" id="shareButton">↗ Share</button>
+    </div>
 </header>
 
 <main class="workspace">
@@ -811,8 +814,69 @@
         </div>
         <div class="resource-heading">Explanation Resources</div>
         <div id="resourceList" class="resource-list"></div>
+
+        <!-- Learning Path Progress Checklist -->
+        <div class="learning-path-card" id="learningPathCard" aria-label="Learning Path Progress">
+            <div class="learning-path-head">
+                <span class="learning-path-title">🎯 Learning Path</span>
+                <span class="learning-path-count" id="learningPathCount">0 / 6</span>
+            </div>
+            <div class="learning-progress-track" role="progressbar" aria-label="Learning progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="learningProgressBar">
+                <div class="learning-progress-fill" id="learningProgressFill"></div>
+            </div>
+            <ul class="learning-path-list" id="learningPathList">
+                <!-- dynamically populated with checkmarks for sections -->
+            </ul>
+        </div>
+
         <p class="resource-note">Select a resource to view its content.</p>
     </aside>
 </main>
+
+<!-- Persistent Floating "?" Help Button -->
+<button class="floating-help-btn" id="floatingHelpBtn" aria-label="Replay guided lab tour" title="Take guided lab tour (re-opens anytime)">
+    <span class="help-icon" aria-hidden="true">?</span>
+    <span class="help-text">Tour</span>
+</button>
+
+<!-- Guided Onboarding Tour Spotlight & Dialog -->
+<div class="tour-overlay" id="tourOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="tourTitle" aria-describedby="tourText">
+    <div class="tour-backdrop" id="tourBackdrop" aria-hidden="true"></div>
+    <div class="tour-spotlight" id="tourSpotlight" aria-hidden="true"></div>
+
+    <div class="tour-tooltip" id="tourTooltip" role="document">
+        <div class="tour-arrow" id="tourArrow" aria-hidden="true"></div>
+        <div class="tour-card-header">
+            <span class="tour-badge" id="tourBadge">Step 1 of 12</span>
+            <button class="tour-close-btn" id="tourCloseBtn" aria-label="Skip tour" title="Skip tour (Esc)">✕</button>
+        </div>
+        <div class="tour-card-body">
+            <h3 class="tour-title" id="tourTitle">Welcome to the Lab!</h3>
+            <p class="tour-text" id="tourText"></p>
+            <div class="tour-analogy-box" id="tourAnalogyBox" hidden>
+                <span class="tour-analogy-icon" aria-hidden="true">💡</span>
+                <span class="tour-analogy-text" id="tourAnalogyText"></span>
+            </div>
+            <div class="tour-finish-actions" id="tourFinishActions" hidden>
+                <button type="button" class="tour-finish-btn primary" id="tourStartSimBtn">🎮 Start with the Simulation</button>
+                <button type="button" class="tour-finish-btn secondary" id="tourStartAimBtn">📖 Start from Aim & Objectives</button>
+            </div>
+        </div>
+        <div class="tour-card-footer" id="tourStandardFooter">
+            <div class="tour-dots" id="tourDots" aria-label="Tour progress dots"></div>
+            <div class="tour-actions">
+                <button type="button" class="tour-btn tour-btn-back" id="tourBackBtn">‹ Back</button>
+                <button type="button" class="tour-btn tour-btn-next" id="tourNextBtn">Next ›</button>
+            </div>
+        </div>
+        <div class="tour-card-meta">
+            <label class="tour-checkbox-label">
+                <input type="checkbox" id="tourDontShowCheck">
+                <span>Don't show again automatically</span>
+            </label>
+            <button type="button" class="tour-skip-btn" id="tourSkipBtn">Skip tour</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>

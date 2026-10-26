@@ -330,3 +330,81 @@ docker stop traffic-lab && docker rm traffic-lab
   and access `http://localhost:5050/`.
 - **Frontend changes not appearing:**  
   Hard refresh your browser (`Ctrl + Shift + R` or `Cmd + Shift + R`) to clear cached CSS/JavaScript.
+
+---
+
+## 16. Guided Onboarding Tour & Learning Path Progress
+
+This virtual lab includes a custom-built, library-free guided onboarding tour and learning progress tracker specifically crafted for first-year students with zero networking or security background.
+
+### 16.1 Key Features & User Experience
+- **Zero External Dependencies:** Built entirely with plain HTML5, CSS3, and vanilla ES6+ JavaScript. No Shepherd, Driver.js, intro.js, or CDN scripts.
+- **Spotlight Dimming & Cutout:** Uses a responsive viewport spotlight with a pulsing terracotta ring (`box-shadow: 0 0 0 9999px rgba(...)`) to highlight target controls while dimming the background.
+- **Real-World Student Analogies:**
+  - *Server:* A shop counter with a single cashier.
+  - *Requests:* Customers placing orders.
+  - *Normal Traffic:* Polite customers taking turns.
+  - *DoS Attack:* One rude customer shouting 1,000 fake orders at once.
+  - *DDoS Attack:* A coordinated mob flooding through every door simultaneously.
+  - *Rate Limiting:* A bouncer enforcing a "maximum 10 orders per customer" rule.
+- **First-Visit Auto-Start:** Automatically launches after a 700ms smooth delay when a user visits the lab for the first time (`localStorage.getItem("css_lab_tour_seen")`).
+- **Flexible Replay Controls:**
+  - Header button: **"Take the tour" / "Replay tour"** (`#startTourButton`).
+  - Persistent Floating Help Button: **"?"** button (`#floatingHelpBtn`) fixed at the bottom-right corner.
+  - "Don't show again automatically" checkbox.
+- **Interactive Section Auto-Navigation:** Step 9 (Interactive Traffic Simulation) dynamically triggers `showResource("simulation")` on entry so students see the interactive dashboard highlighted in real time.
+- **Finish Screen:** Offers two direct paths for the student: *"Start with the simulation"* or *"Start from Aim"*.
+- **Learning Path Checklist:** A sidebar card (`#learningPathCard`) tracks visited manual sections (`Aim`, `Theory`, `Procedure`, `Simulation`, `Quiz`, `Feedback`) with animated checkmarks, a progress bar, and clickable shortcuts. Visited sections persist across page reloads in `localStorage`.
+
+### 16.2 Keyboard & Accessibility Support
+- **Next Step:** `ArrowRight` or `Enter`
+- **Previous Step:** `ArrowLeft`
+- **Exit / Skip:** `Escape` or the **"Skip tour"** button
+- **Focus Trap:** Keyboard `Tab` and `Shift + Tab` navigation is trapped inside the tour dialog to ensure compliance with WCAG accessibility guidelines.
+- **Screen Reader Support:** Configured with `role="dialog"`, `aria-modal="true"`, and `aria-live="polite"`.
+- **Motion Sensitivity:** Respects `@media (prefers-reduced-motion: reduce)` by disabling spotlight pulsing and card transitions.
+
+### 16.3 LocalStorage Keys Reference
+
+| Key | Value Type | Description |
+|---|---|---|
+| `css_lab_tour_seen` | `"true"` | Set when the tour has started or completed so it does not auto-popup repeatedly. |
+| `css_lab_tour_dont_show` | `"true"` | Set when the student checks "Don't show again automatically". |
+| `css_lab_visited_sections` | JSON Array (e.g. `["aim","theory"]`) | Tracks the list of sections the student has viewed to update the Learning Path. |
+
+To reset tour state for testing in browser console:
+```javascript
+localStorage.removeItem("css_lab_tour_seen");
+localStorage.removeItem("css_lab_tour_dont_show");
+localStorage.removeItem("css_lab_visited_sections");
+location.reload();
+```
+
+### 16.4 How to Edit or Add Tour Steps
+
+All tour steps are defined as a modular configuration array in [`frontend/script.js`](file:///c:/Users/komal/Desktop/Desktopp/ddos/css-virtual-lab/frontend/script.js) under `tourSteps`:
+
+```javascript
+const tourSteps = [
+  {
+    id: "step-id",                     // Unique identifier for the step
+    selector: "#targetElement",         // CSS selector of element to spotlight (null for centered modal)
+    fallbackSelector: ".altSelector",   // Fallback selector if primary element is hidden/collapsed
+    title: "Step Title",                // Displayed at the top of the tooltip card
+    text: "Plain-English description",  // 1-2 concise sentences explaining what the student will learn
+    analogy: "Real-world analogy",      // Optional analogy text highlighted in an analogy callout box
+    onEnter: () => {                    // Optional hook executed when navigating to this step
+      showResource("simulation");
+    },
+    isFinish: false                     // Set to true for the final "You're ready!" screen
+  },
+  // ...
+];
+```
+
+#### Steps to Modify:
+1. **Change Tooltip Text or Analogies:** Locate the step in `tourSteps` in `frontend/script.js` and modify `title`, `text`, or `analogy`.
+2. **Reorder Steps:** Rearrange objects within the `tourSteps` array. The tour engine automatically recalculates "Step X of N" and updates the progress dots.
+3. **Highlight a New Element:** Set `selector: "#myNewElementId"`. If `selector: null`, the tooltip centers in the screen as a welcome/finish modal.
+4. **Trigger Custom Logic on Step Display:** Use the `onEnter` function callback (e.g. opening a specific modal, tab, or switching sections).
+
