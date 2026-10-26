@@ -64,6 +64,10 @@ function showResource(id) {
             block: "start"
         });
     }
+
+    document.dispatchEvent(
+        new CustomEvent("lessonShown", { detail: { id } })
+    );
 }
 window.showResource = showResource;
 
@@ -216,205 +220,1642 @@ if ($("shareButton")) {
 }
 
 // ==========================================
-// 2. TRAFFIC CALCULATIONS
+// 2. LIVE TRAFFIC SIMULATION
+//    One shared state object (`sim`) drives the animated scene, counters,
+//    gauges, bars, chart, explanation and event log so they always agree.
+//    Educational model only: no real network traffic is generated.
 // ==========================================
 
-function calculateTraffic(incoming, capacity) {
-    const accepted = Math.min(incoming, capacity);
-    const dropped = incoming - accepted;
+const DEFAULT_INPUTS = {
+    legitimateRate: 20,
+    capacity: 100,
+    dosRate: 120,
+    attackerCount: 5,
+    ratePerSource: 40,
+    perSourceLimit: 10
+};
+
+const INPUT_RULES = {
+    legitimateRate: { label: "Legitimate traffic", min: 0, max: 100000 },
+    capacity: { label: "Server capacity", min: 1, max: 100000 },
+    dosRate: { label: "DoS attack rate", min: 0, max: 100000 },
+    attackerCount: { label: "DDoS source count", min: 0, max: 1000 },
+    ratePerSource: { label: "Rate per source", min: 0, max: 100000 },
+    perSourceLimit: { label: "Per-source limit", min: 0, max: 100000 }
+};
+
+const SCENARIO_NAMES = { normal: "Normal", dos: "DoS", ddos: "DDoS" };
+const HEALTH_LABELS = {
+    within: "Within capacity",
+    near: "Near capacity",
+    overloaded: "Overloaded"
+};
+const HEALTH_CLASS = { within: "normal", near: "near", overloaded: "overloaded" };
+
+const HISTORY_SECONDS = 60;
+const LOG_LIMIT = 40;
+const SLOW_FACTOR = 0.35;
+const DEBOUNCE_MS = 350;
+const NEAR_THRESHOLD = 80; // percent of capacity
+
+const COLORS = {
+    legit: "#a67d69",
+    attack: "#5a3d31",
+    processed: "#6f8f72",
+    processedSoft: "#e7efe8",
+    dropped: "#c0705a",
+    droppedSoft: "#f6e5e1",
+    blocked: "#c99a3e",
+    blockedSoft: "#f8eed9",
+    capacity: "#5a3d31",
+    text: "#302d2b",
+    muted: "#81766f",
+    line: "#e6d8ce",
+    white: "#ffffff"
+};
+const HEALTH_COLORS = {
+    within: COLORS.processed,
+    near: COLORS.blocked,
+    overloaded: COLORS.dropped
+};
+const FONT = "Arial, Helvetica, sans-serif";
+
+const motionQuery = window.matchMedia
+    ? window.matchMedia("(prefers-reduced-motion: reduce)")
+    : { matches: false };
+const prefersReducedMotion = () => Boolean(motionQuery.matches);
+
+function formatNumber(value, decimals = 0) {
+    return Number(value).toLocaleString(undefined, {
+        maximumFractionDigits: decimals
+    });
+}
+
+function plural(count, one, many) {
+    return count === 1 ? one : many;
+}
+
+function niceCeil(value) {
+    if (!(value > 0)) return 10;
+    const power = Math.pow(10, Math.floor(Math.log10(value)));
+    const n = value / power;
+    const step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
+    return step * power;
+}
+
+// ---------- Input validation ----------
+
+function checkInteger(id) {
+    const rule = INPUT_RULES[id];
+    const input = $(id);
+    const raw = input ? input.value.trim() : "";
+
+    if (raw === "") {
+        return { ok: false, error: `${rule.label} is empty. Waiting for a whole number.` };
+    }
+
+    const value = Number(raw);
+
+    if (!Number.isInteger(value)) {
+        return { ok: false, error: `${rule.label} must be a whole number.` };
+    }
+
+    if (value < rule.min || value > rule.max) {
+        return {
+            ok: false,
+            error: `${rule.label} must be between ${formatNumber(rule.min)} and ${formatNumber(rule.max)}.`
+        };
+    }
+
+    return { ok: true, value };
+}
+
+function readSettings(scenario) {
+    const protection =
+        scenario === "ddos" && Boolean($("protectionEnabled")?.checked);
+
+    const needed = ["legitimateRate", "capacity"];
+    if (scenario === "dos") needed.push("dosRate");
+    if (scenario === "ddos") needed.push("attackerCount", "ratePerSource");
+    if (protection) needed.push("perSourceLimit");
+
+    const values = {};
+    const errors = [];
+
+    Object.keys(INPUT_RULES).forEach((id) => {
+        const input = $(id);
+        if (!input) return;
+
+        const relevant = needed.includes(id);
+        const result = checkInteger(id);
+
+        input.setAttribute("aria-invalid", String(relevant && !result.ok));
+
+        if (!relevant) return;
+        if (result.ok) values[id] = result.value;
+        else errors.push(result.error);
+    });
+
+    if (errors.length) return { ok: false, errors };
 
     return {
-        incoming,
-        accepted,
-        dropped,
-        status: dropped > 0 ? "Overloaded" : "Normal"
+        ok: true,
+        settings: {
+            scenario,
+            legitimate: values.legitimateRate,
+            capacity: values.capacity,
+            dosRate: scenario === "dos" ? values.dosRate : 0,
+            sources:
+                scenario === "dos" ? 1 :
+                scenario === "ddos" ? values.attackerCount : 0,
+            ratePerSource:
+                scenario === "dos" ? values.dosRate :
+                scenario === "ddos" ? values.ratePerSource : 0,
+            protection,
+            limit: protection ? values.perSourceLimit : null
+        }
     };
 }
 
-function simulateNormal(legitimateRate, capacity) {
-    return calculateTraffic(legitimateRate, capacity);
+function sameSettings(a, b) {
+    return Boolean(a && b) && JSON.stringify(a) === JSON.stringify(b);
 }
 
-function simulateDos(legitimateRate, attackRate, capacity) {
-    return calculateTraffic(
-        legitimateRate + attackRate,
-        capacity
-    );
-}
+// ---------- Traffic model (mirrors backend/simulation.py + protection.py) ----------
 
-function simulateDdos(
-    legitimateRate,
-    attackerCount,
-    ratePerSource,
-    capacity
-) {
-    return calculateTraffic(
-        legitimateRate + attackerCount * ratePerSource,
-        capacity
-    );
-}
+function finalizeModel(s, parts) {
+    const incoming = parts.incoming;
+    const blocked = parts.blocked;
+    const remaining = incoming - blocked;
 
-function readInteger(id, min, max) {
-    const input = $(id);
+    let accepted = parts.accepted;
+    let dropped = parts.dropped;
 
-    if (!input) {
-        throw new Error(`Input field "${id}" was not found.`);
+    if (accepted === undefined) {
+        accepted = Math.min(remaining, s.capacity);
+        dropped = remaining - accepted;
     }
 
-    const raw = input.value.trim();
-    const value = Number(raw);
-
-    if (
-        raw === "" ||
-        !Number.isSafeInteger(value) ||
-        value < min ||
-        value > max
-    ) {
-        throw new Error(
-            `Enter a whole number from ${min} to ${max} for ${id}.`
-        );
+    let legitAccepted = parts.legitAccepted;
+    if (legitAccepted === undefined || Number.isNaN(legitAccepted)) {
+        // Proportional sharing, exactly as in the backend model.
+        legitAccepted = remaining > 0 ? (s.legitimate * accepted) / remaining : 0;
     }
 
-    return value;
+    const offeredPct = (remaining / s.capacity) * 100;
+    const processedPct = (accepted / s.capacity) * 100;
+
+    const health =
+        dropped > 0 ? "overloaded" :
+        offeredPct >= NEAR_THRESHOLD ? "near" : "within";
+
+    return {
+        incoming,
+        attackTotal: parts.attackTotal,
+        blocked,
+        remaining,
+        accepted,
+        dropped,
+        legitAccepted,
+        attackAccepted: Math.max(0, accepted - legitAccepted),
+        offeredPct,
+        processedPct,
+        health
+    };
 }
 
-function updateBar(id, value, scale) {
-    const bar = $(id);
+/** Browser copy of the backend formulas, used only if the Flask API is unreachable. */
+function computeModel(s) {
+    const attackTotal =
+        s.scenario === "dos" ? s.dosRate :
+        s.scenario === "ddos" ? s.sources * s.ratePerSource : 0;
 
-    if (!bar) return;
+    // protection.allowed_attack_after_limit(): per-source cap on attack sources.
+    const blocked =
+        s.protection && s.sources > 0
+            ? s.sources * Math.max(0, s.ratePerSource - s.limit)
+            : 0;
 
-    bar.style.width =
-        `${scale > 0 ? (value / scale) * 100 : 0}%`;
+    return finalizeModel(s, {
+        incoming: s.legitimate + attackTotal,
+        attackTotal,
+        blocked
+    });
 }
 
-function displayResults(result) {
-    ["incoming", "accepted", "dropped", "blocked"].forEach((key) => {
-        if ($(key)) {
-            $(key).textContent = Number(result[key] || 0).toLocaleString();
-        }
+function buildPayload(s) {
+    const payload = {
+        scenario: s.scenario,
+        legitimate_rate: s.legitimate,
+        capacity: s.capacity
+    };
 
-        if ($(key + "Label")) {
-            $(key + "Label").textContent = Number(result[key] || 0).toLocaleString();
-        }
+    if (s.scenario === "dos") {
+        payload.attack_rate_per_source = s.dosRate;
+        payload.attacker_count = 1;
+    } else if (s.scenario === "ddos") {
+        payload.attacker_count = s.sources;
+        payload.attack_rate_per_source = s.ratePerSource;
+        payload.protection_enabled = s.protection;
+        if (s.protection) payload.per_source_limit = s.limit;
+    }
+
+    return payload;
+}
+
+/**
+ * Map the API response onto the lab's vocabulary:
+ * incoming = every request that arrives (before protection),
+ * remaining = incoming - blocked (what reaches the server).
+ * The backend's DDoS "incoming" is already post-filter, so we use offered_total.
+ */
+function modelFromApi(data, s) {
+    const blocked = Number(data.blocked) || 0;
+    const attackTotal = Number(data.attack_incoming) || 0;
+    const incoming =
+        s.scenario === "ddos" ? Number(data.offered_total) : Number(data.incoming);
+
+    const model = finalizeModel(s, {
+        incoming,
+        attackTotal,
+        blocked,
+        accepted: Number(data.accepted),
+        dropped: Number(data.dropped),
+        legitAccepted: Number(data.legitimate_accepted)
     });
 
-    if ($("status")) {
-        $("status").textContent = result.status;
+    const consistent =
+        model.incoming === model.accepted + model.dropped + model.blocked &&
+        model.incoming === s.legitimate + model.attackTotal;
 
-        $("status").className =
-            "status " +
-            (result.status === "Normal" ? "normal" : "overloaded");
+    if (!consistent) {
+        throw new Error("API response failed the consistency check.");
     }
 
-    const scale = Math.max(result.offered_total || 0, result.incoming || 0, result.capacity || 0, 1);
+    return model;
+}
 
-    updateBar("incomingBar", result.incoming, scale);
-    updateBar("acceptedBar", result.accepted, scale);
-    updateBar("droppedBar", result.dropped, scale);
-    if ($("blockedBar")) {
-        updateBar("blockedBar", result.blocked || 0, scale);
+async function requestModel(s) {
+    let response;
+
+    try {
+        response = await fetch("/api/simulate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(buildPayload(s))
+        });
+    } catch (networkError) {
+        return { model: computeModel(s), source: "local" };
     }
 
-    if ($("explanation")) {
-        $("explanation").textContent =
-            result.message || (
-                result.dropped === 0
-                    ? "All incoming requests fit within the configured server capacity."
-                    : `${result.dropped} requests/sec exceed the available capacity in this model.`
-            );
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+        throw new Error(data.error || `Simulation server returned HTTP ${response.status}.`);
+    }
+
+    try {
+        return { model: modelFromApi(data, s), source: "api" };
+    } catch (mappingError) {
+        console.warn(mappingError.message, "Falling back to the browser model.");
+        return { model: computeModel(s), source: "local" };
     }
 }
 
-// ==========================================
-// 3. MAIN SIMULATION (API-CONNECTED)
-// ==========================================
+// ---------- Shared simulation state ----------
 
-async function runSimulation() {
-    const runBtn = $("runSimulation");
-    const messageEl = $("message");
+const sim = {
+    running: false,
+    paused: false,
+    slow: false,
+    time: 0,          // whole simulated seconds
+    subSecond: 0,     // fraction of the current simulated second
+    settings: null,
+    model: null,
+    history: [],
+    log: [],
+    rafId: 0,
+    lastFrame: 0,
+    requestSeq: 0,
+    debounceId: 0,
+    notedLocal: false
+};
 
-    try {
-        const legitimate = readInteger("legitimateRate", 0, 100000);
-        const capacity = readInteger("capacity", 1, 100000);
-        const dosRate = readInteger("dosRate", 0, 100000);
-        const count = readInteger("attackerCount", 0, 1000);
-        const rate = readInteger("ratePerSource", 0, 100000);
-        const protectionEnabled = $("protectionEnabled") ? $("protectionEnabled").checked : false;
-        const perSourceLimit = (protectionEnabled && selectedScenario === "ddos")
-            ? readInteger("perSourceLimit", 0, 100000)
-            : null;
+// ---------- Canvas helpers ----------
 
-        const payload = {
-            scenario: selectedScenario,
-            legitimate_rate: legitimate,
-            capacity: capacity
-        };
+function setupCanvas(canvas, width, height) {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    canvas.style.height = `${height}px`;
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return ctx;
+}
 
-        if (selectedScenario === "dos") {
-            payload.attack_rate_per_source = dosRate;
-            payload.attacker_count = 1;
-        } else if (selectedScenario === "ddos") {
-            payload.attacker_count = count;
-            payload.attack_rate_per_source = rate;
-            payload.protection_enabled = protectionEnabled;
-            if (protectionEnabled) {
-                payload.per_source_limit = perSourceLimit;
+function roundRectPath(ctx, x, y, w, h, r) {
+    const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+}
+
+function drawText(ctx, text, x, y, options = {}) {
+    const {
+        size = 11,
+        weight = "normal",
+        color = COLORS.text,
+        align = "center",
+        baseline = "middle"
+    } = options;
+
+    ctx.font = `${weight} ${size}px ${FONT}`;
+    ctx.fillStyle = color;
+    ctx.textAlign = align;
+    ctx.textBaseline = baseline;
+    ctx.fillText(text, x, y);
+}
+
+// ---------- Animated traffic scene ----------
+
+const scene = (() => {
+    const canvas = $("trafficCanvas");
+    const wrap = $("sceneWrap");
+    let ctx = null;
+    let W = 0;
+    let H = 0;
+    let L = null;
+    let s = null;
+    let m = null;
+    let dots = [];
+    let rates = { legit: 0, attack: 0, perDot: 0 };
+    let spawnAcc = { legit: 0, attack: 0 };
+    let blockAcc = 0;
+    let dropAcc = { legit: 0, attack: 0 };
+    let dotSeq = 0;
+    let attackSeq = 0;
+    let lightPhase = 0;
+
+    function computeRates() {
+        if (!m || m.incoming <= 0) {
+            rates = { legit: 0, attack: 0, perDot: 0 };
+            return;
+        }
+
+        // Representative dots: density grows with traffic but stays bounded.
+        const total = Math.min(80, 9 * Math.log2(1 + m.incoming / 4));
+        let legit = (total * s.legitimate) / m.incoming;
+        let attack = (total * m.attackTotal) / m.incoming;
+
+        if (s.legitimate > 0) legit = Math.max(legit, 0.8);
+        if (m.attackTotal > 0) attack = Math.max(attack, 0.8);
+
+        rates = { legit, attack, perDot: m.incoming / (legit + attack) };
+    }
+
+    function layout() {
+        if (!W || !H || !s) {
+            L = null;
+            return;
+        }
+
+        const narrow = W < 560;
+        const srcX = narrow ? 42 : Math.max(56, W * 0.09);
+        const serverW = narrow ? 46 : 62;
+        const serverH = narrow ? 92 : 112;
+        const serverX = W * 0.68;
+        const serverY = H * 0.47;
+        const hasAttack = s.scenario !== "normal";
+        const legitY = hasAttack ? H * 0.2 : serverY;
+
+        const attackIcons = [];
+        let extra = 0;
+
+        if (s.scenario === "dos") {
+            attackIcons.push({ x: srcX, y: H * 0.68, big: true });
+        } else if (s.scenario === "ddos" && s.sources > 0) {
+            const maxVisible = narrow ? 4 : 6;
+            const visible = Math.min(s.sources, maxVisible);
+            extra = s.sources - visible;
+
+            const cols = visible > 3 ? 2 : 1;
+            const rows = Math.ceil(visible / cols);
+            const top = H * 0.5;
+            const bottom = H * (extra > 0 ? 0.76 : 0.84);
+
+            for (let i = 0; i < visible; i++) {
+                const col = i % cols;
+                const row = Math.floor(i / cols);
+                const x = cols === 2 ? srcX + (col === 0 ? -15 : 15) : srcX;
+                const y = rows === 1 ? (top + bottom) / 2 : top + ((bottom - top) * row) / (rows - 1);
+                attackIcons.push({ x, y, big: false });
             }
         }
 
-        if (runBtn) {
-            runBtn.disabled = true;
-            runBtn.textContent = "Simulating...";
-        }
-        if (messageEl) {
-            messageEl.textContent = "Simulating traffic on Flask server...";
+        L = {
+            narrow,
+            srcX,
+            legitY,
+            attackIcons,
+            extra,
+            extraPos: { x: srcX, y: H * 0.9 },
+            mergeX: W * 0.4,
+            mergeY: serverY,
+            serverX,
+            serverY,
+            serverW,
+            serverH,
+            procX: W - (narrow ? 34 : 52),
+            procW: narrow ? 60 : 84,
+            blockedBin: { x: W * 0.4, y: H * 0.09 },
+            droppedBin: { x: serverX - serverW * 0.6, y: H * 0.91 },
+            speed: Math.max(140, W * 0.42)
+        };
+    }
+
+    function resize() {
+        if (!canvas || !wrap) return;
+        const width = wrap.clientWidth;
+        if (!width) return;
+
+        W = width;
+        H = W < 560 ? 330 : 370;
+        ctx = setupCanvas(canvas, W, H);
+        dots = []; // old positions are no longer valid
+        layout();
+        render();
+    }
+
+    function configure(settings, model) {
+        s = settings;
+        m = model;
+        computeRates();
+        layout();
+    }
+
+    function clear() {
+        dots = [];
+        spawnAcc = { legit: 0, attack: 0 };
+        blockAcc = 0;
+        dropAcc = { legit: 0, attack: 0 };
+        dotSeq = 0;
+        attackSeq = 0;
+    }
+
+    function jitter() {
+        return ((dotSeq * 0.6180339887) % 1) - 0.5;
+    }
+
+    function decideFate(kind) {
+        // Deterministic error diffusion: the share of dots taking each path
+        // matches the model's blocked / dropped proportions exactly.
+        if (kind === "attack" && m.blocked > 0 && m.attackTotal > 0) {
+            blockAcc += m.blocked / m.attackTotal;
+            if (blockAcc >= 1 - 1e-9) {
+                blockAcc -= 1;
+                return "blocked";
+            }
         }
 
-        const response = await fetch("/api/simulate", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(payload)
+        if (m.dropped > 0 && m.remaining > 0) {
+            dropAcc[kind] += m.dropped / m.remaining;
+            if (dropAcc[kind] >= 1 - 1e-9) {
+                dropAcc[kind] -= 1;
+                return "dropped";
+            }
+        }
+
+        return "processed";
+    }
+
+    function attackOrigin() {
+        if (s.scenario === "dos") return L.attackIcons[0];
+
+        const index = attackSeq % Math.max(1, s.sources);
+        attackSeq++;
+
+        return index < L.attackIcons.length ? L.attackIcons[index] : L.extraPos;
+    }
+
+    function spawn(kind) {
+        dotSeq++;
+        const j = jitter();
+        const origin = kind === "legit" ? { x: L.srcX, y: L.legitY } : attackOrigin();
+        if (!origin) return;
+
+        const fate = decideFate(kind);
+        const start = { x: origin.x + 16, y: origin.y };
+        const merge = { x: L.mergeX, y: L.mergeY + j * 22 };
+        const entry = {
+            x: L.serverX - L.serverW / 2 - 3,
+            y: L.serverY + j * L.serverH * 0.6
+        };
+
+        let points;
+
+        if (fate === "blocked") {
+            points = [start, merge, { x: L.blockedBin.x + j * 60, y: L.blockedBin.y + 4 }];
+        } else if (fate === "dropped") {
+            points = [
+                start,
+                merge,
+                entry,
+                { x: entry.x - 16, y: entry.y + 4 },
+                { x: L.droppedBin.x + j * 60, y: L.droppedBin.y + 2 }
+            ];
+        } else {
+            points = [
+                start,
+                merge,
+                entry,
+                { x: L.serverX, y: entry.y },
+                { x: L.procX - 14 + j * 16, y: L.serverY + j * 18 }
+            ];
+        }
+
+        dots.push({ kind, fate, points, seg: 0, along: 0, fade: 1, arrived: false });
+    }
+
+    function moveDot(dot, distance) {
+        while (distance > 0 && dot.seg < dot.points.length - 1) {
+            const a = dot.points[dot.seg];
+            const b = dot.points[dot.seg + 1];
+            const length = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+            const left = length - dot.along;
+
+            if (distance < left) {
+                dot.along += distance;
+                return;
+            }
+
+            distance -= left;
+            dot.seg++;
+            dot.along = 0;
+        }
+
+        dot.arrived = true;
+    }
+
+    function dotPosition(dot) {
+        if (dot.seg >= dot.points.length - 1) return dot.points[dot.points.length - 1];
+
+        const a = dot.points[dot.seg];
+        const b = dot.points[dot.seg + 1];
+        const length = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+        const k = dot.along / length;
+
+        return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k };
+    }
+
+    /** Advance the scene by dt simulated seconds. */
+    function update(dt) {
+        if (!L || !m) return;
+
+        const load = Math.min(1, m.processedPct / 100);
+        lightPhase += dt * (2 + 9 * load);
+
+        if (prefersReducedMotion()) {
+            dots = [];
+            return;
+        }
+
+        spawnAcc.legit += rates.legit * dt;
+        spawnAcc.attack += rates.attack * dt;
+
+        while (spawnAcc.legit >= 1) {
+            spawnAcc.legit -= 1;
+            spawn("legit");
+        }
+
+        while (spawnAcc.attack >= 1) {
+            spawnAcc.attack -= 1;
+            spawn("attack");
+        }
+
+        const distance = L.speed * dt;
+
+        dots.forEach((dot) => {
+            if (dot.arrived) {
+                dot.fade -= dt * 1.6;
+            } else {
+                moveDot(dot, distance);
+                if (dot.arrived && dot.fate === "processed") dot.fade = 0;
+            }
         });
 
-        const data = await response.json();
+        dots = dots.filter((dot) => dot.fade > 0);
+        if (dots.length > 400) dots.splice(0, dots.length - 400);
+    }
 
-        if (!response.ok) {
-            throw new Error(data.error || `Simulation failed with HTTP status ${response.status}`);
+    // ----- drawing -----
+
+    function flowWidth(rate) {
+        if (!(rate > 0) || !m || m.incoming <= 0) return 0;
+        return 1.5 + 7 * Math.sqrt(Math.min(1, rate / m.incoming));
+    }
+
+    function drawFlow(points, rate, color) {
+        const width = flowWidth(rate);
+
+        ctx.save();
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+
+        if (width === 0) {
+            ctx.strokeStyle = COLORS.line;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 5]);
+        } else {
+            ctx.strokeStyle = color;
+            ctx.globalAlpha = 0.32;
+            ctx.lineWidth = width;
         }
 
-        displayResults(data);
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        points.slice(1).forEach((p) => ctx.lineTo(p.x, p.y));
+        ctx.stroke();
+        ctx.restore();
+    }
 
-        if (messageEl) {
-            messageEl.textContent = data.message || `${selectedScenario.toUpperCase()} simulation completed successfully.`;
+    function drawUser(x, y, color) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y - 6, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x, y + 7, 8, Math.PI, 0);
+        ctx.fill();
+    }
+
+    function drawAttacker(x, y, big) {
+        const w = big ? 30 : 20;
+        const h = big ? 22 : 15;
+
+        roundRectPath(ctx, x - w / 2, y - h / 2, w, h, 4);
+        ctx.fillStyle = COLORS.attack;
+        ctx.fill();
+        ctx.fillRect(x - 3, y + h / 2, 6, 3);
+        drawText(ctx, "!", x, y + 0.5, { size: big ? 15 : 11, weight: "bold", color: COLORS.white });
+    }
+
+    function drawBox(cx, cy, w, h, stroke, fill, title, detail, dashed) {
+        ctx.save();
+        roundRectPath(ctx, cx - w / 2, cy - h / 2, w, h, 9);
+        ctx.fillStyle = fill;
+        ctx.fill();
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = stroke;
+        if (dashed) ctx.setLineDash([4, 3]);
+        ctx.stroke();
+        ctx.restore();
+
+        const size = L.narrow ? 10 : 11;
+        drawText(ctx, title, cx, cy - (detail ? 7 : 0), { size: size + 1, weight: "bold", color: stroke });
+        if (detail) drawText(ctx, detail, cx, cy + 8, { size, color: COLORS.text });
+    }
+
+    function drawSources() {
+        const small = L.narrow ? 10 : 11;
+        const legitColor = s.legitimate > 0 ? COLORS.legit : COLORS.line;
+
+        drawUser(L.srcX - 14, L.legitY + 2, legitColor);
+        drawUser(L.srcX + 14, L.legitY + 2, legitColor);
+        drawUser(L.srcX, L.legitY - 3, legitColor);
+        drawText(ctx, "Legitimate users", L.srcX, L.legitY + 26, { size: small, weight: "bold" });
+        drawText(ctx, `${formatNumber(s.legitimate)} req/s`, L.srcX, L.legitY + 40, { size: small, color: COLORS.muted });
+
+        if (s.scenario === "dos") {
+            const icon = L.attackIcons[0];
+            drawAttacker(icon.x, icon.y, true);
+            drawText(ctx, "1 attack source", L.srcX, icon.y + 28, { size: small, weight: "bold" });
+            drawText(ctx, `${formatNumber(s.dosRate)} req/s`, L.srcX, icon.y + 42, { size: small, color: COLORS.muted });
         }
 
-        // Notify visualization
-        document.dispatchEvent(new CustomEvent("simulationCompleted", {
-            detail: { result: data, payload }
-        }));
+        if (s.scenario === "ddos") {
+            const titleY = H * 0.43;
+            drawText(
+                ctx,
+                `${formatNumber(s.sources)} attack ${plural(s.sources, "source", "sources")}`,
+                L.srcX,
+                titleY - 8,
+                { size: small, weight: "bold" }
+            );
+            drawText(ctx, `× ${formatNumber(s.ratePerSource)} req/s each`, L.srcX, titleY + 6, { size: small, color: COLORS.muted });
 
-    } catch (error) {
-        if (messageEl) {
-            messageEl.textContent = error.message;
+            L.attackIcons.forEach((icon) => drawAttacker(icon.x, icon.y, false));
+
+            if (L.extra > 0) {
+                const label = `+${formatNumber(L.extra)} sources`;
+                ctx.font = `bold ${small}px ${FONT}`;
+                const w = ctx.measureText(label).width + 16;
+                roundRectPath(ctx, L.extraPos.x - w / 2, L.extraPos.y - 10, w, 20, 10);
+                ctx.fillStyle = COLORS.attack;
+                ctx.fill();
+                drawText(ctx, label, L.extraPos.x, L.extraPos.y, { size: small, weight: "bold", color: COLORS.white });
+            }
         }
-    } finally {
-        if (runBtn) {
-            runBtn.disabled = false;
-            runBtn.textContent = "Run Simulation";
+    }
+
+    function drawMerge() {
+        if (s.protection) {
+            const w = L.narrow ? 74 : 104;
+            const h = 44;
+            drawBox(
+                L.mergeX,
+                L.mergeY,
+                w,
+                h,
+                COLORS.blocked,
+                COLORS.blockedSoft,
+                "Rate limit",
+                `≤ ${formatNumber(s.limit)} req/s per source`
+            );
+        } else {
+            ctx.fillStyle = COLORS.white;
+            ctx.strokeStyle = COLORS.legit;
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(L.mergeX, L.mergeY, 9, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            drawText(ctx, "Network", L.mergeX, L.mergeY + 22, { size: L.narrow ? 10 : 11, color: COLORS.muted });
+        }
+    }
+
+    function drawServer() {
+        const health = m.health;
+        const color = HEALTH_COLORS[health];
+        const x0 = L.serverX - L.serverW / 2;
+        const y0 = L.serverY - L.serverH / 2;
+        const reduce = prefersReducedMotion();
+
+        ctx.save();
+        if (health === "overloaded") {
+            ctx.shadowColor = "rgba(192, 112, 90, 0.55)";
+            ctx.shadowBlur = 16;
+        }
+        roundRectPath(ctx, x0, y0, L.serverW, L.serverH, 9);
+        ctx.fillStyle = COLORS.white;
+        ctx.fill();
+        ctx.restore();
+
+        roundRectPath(ctx, x0, y0, L.serverW, L.serverH, 9);
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = color;
+        ctx.stroke();
+
+        const slots = 3;
+        const slotH = (L.serverH - 24) / slots;
+
+        for (let i = 0; i < slots; i++) {
+            const sy = y0 + 10 + i * (slotH + 2);
+            roundRectPath(ctx, x0 + 7, sy, L.serverW - 14, slotH - 2, 4);
+            ctx.fillStyle = "#f6efe9";
+            ctx.fill();
+
+            // Activity light: blink speed follows processed load.
+            const on = reduce || !sim.running || Math.sin(lightPhase + i * 2.1) > -0.2;
+            ctx.beginPath();
+            ctx.arc(x0 + L.serverW - 15, sy + (slotH - 2) / 2, 3.6, 0, Math.PI * 2);
+            ctx.fillStyle = on ? color : "#ddd2ca";
+            ctx.fill();
+
+            // Load bar inside the slot (processed share of capacity).
+            const barW = (L.serverW - 34) * Math.min(1, m.processedPct / 100);
+            ctx.fillStyle = color;
+            ctx.globalAlpha = 0.45;
+            ctx.fillRect(x0 + 11, sy + (slotH - 2) / 2 - 2, barW, 4);
+            ctx.globalAlpha = 1;
+        }
+
+        const small = L.narrow ? 10 : 11;
+        drawText(ctx, "Server", L.serverX, y0 - 30, { size: small + 1, weight: "bold" });
+        drawText(
+            ctx,
+            `${formatNumber(m.accepted)} / ${formatNumber(s.capacity)} req/s`,
+            L.serverX,
+            y0 - 15,
+            { size: small, color: COLORS.muted }
+        );
+    }
+
+    function drawDots() {
+        dots.forEach((dot) => {
+            const p = dotPosition(dot);
+            ctx.globalAlpha = Math.max(0, Math.min(1, dot.fade));
+            ctx.fillStyle = dot.kind === "legit" ? COLORS.legit : COLORS.attack;
+            ctx.beginPath();
+
+            if (dot.kind === "legit") {
+                ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+            } else {
+                ctx.moveTo(p.x, p.y - 5);
+                ctx.lineTo(p.x + 5, p.y);
+                ctx.lineTo(p.x, p.y + 5);
+                ctx.lineTo(p.x - 5, p.y);
+                ctx.closePath();
+            }
+
+            ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+    }
+
+    function render() {
+        if (!ctx || !W) return;
+        ctx.clearRect(0, 0, W, H);
+        if (!L || !m) return;
+
+        const merge = { x: L.mergeX, y: L.mergeY };
+        const entry = { x: L.serverX - L.serverW / 2, y: L.serverY };
+
+        // Flow paths (width grows with the rate on that path).
+        drawFlow([{ x: L.srcX + 16, y: L.legitY }, merge], s.legitimate, COLORS.legit);
+        L.attackIcons.forEach((icon) => {
+            drawFlow([{ x: icon.x + 16, y: icon.y }, merge], s.ratePerSource, COLORS.attack);
+        });
+        if (L.extra > 0) {
+            drawFlow([{ x: L.extraPos.x + 40, y: L.extraPos.y }, merge], L.extra * s.ratePerSource, COLORS.attack);
+        }
+        if (s.protection) {
+            drawFlow([merge, { x: L.blockedBin.x, y: L.blockedBin.y + 18 }], m.blocked, COLORS.blocked);
+        }
+        drawFlow([merge, entry], m.remaining, COLORS.legit);
+        drawFlow(
+            [{ x: entry.x, y: L.serverY + L.serverH * 0.3 }, { x: L.droppedBin.x, y: L.droppedBin.y - 17 }],
+            m.dropped,
+            COLORS.dropped
+        );
+        drawFlow(
+            [{ x: L.serverX + L.serverW / 2, y: L.serverY }, { x: L.procX - L.procW / 2, y: L.serverY }],
+            m.accepted,
+            COLORS.processed
+        );
+
+        // Destination areas.
+        const binW = L.narrow ? 112 : 150;
+        drawBox(
+            L.droppedBin.x,
+            L.droppedBin.y,
+            binW,
+            34,
+            COLORS.dropped,
+            COLORS.droppedSoft,
+            "Dropped",
+            `${formatNumber(m.dropped)} req/s · over capacity`,
+            true
+        );
+
+        if (s.protection) {
+            drawBox(
+                L.blockedBin.x,
+                L.blockedBin.y,
+                binW,
+                34,
+                COLORS.blocked,
+                COLORS.blockedSoft,
+                "Blocked",
+                `${formatNumber(m.blocked)} req/s · by rule`,
+                true
+            );
+
+            drawText(
+                ctx,
+                `${formatNumber(m.remaining)} req/s reach server`,
+                (L.mergeX + entry.x) / 2,
+                L.serverY - 16,
+                { size: L.narrow ? 9 : 10, color: COLORS.muted }
+            );
+        }
+
+        drawBox(
+            L.procX,
+            L.serverY,
+            L.procW,
+            54,
+            COLORS.processed,
+            COLORS.processedSoft,
+            "Processed",
+            `${formatNumber(m.accepted)} req/s`
+        );
+
+        drawSources();
+        drawMerge();
+        drawServer();
+        drawDots();
+    }
+
+    return {
+        resize,
+        configure,
+        clear,
+        update,
+        render,
+        getRepresentation: () => rates.perDot
+    };
+})();
+
+// ---------- Live line chart ----------
+
+const chart = (() => {
+    const canvas = $("trafficChart");
+    const wrap = $("chartWrap");
+    let ctx = null;
+    let W = 0;
+    let H = 0;
+
+    const SERIES = [
+        { key: "blocked", color: COLORS.blocked, width: 2 },
+        { key: "dropped", color: COLORS.dropped, width: 2 },
+        { key: "accepted", color: COLORS.processed, width: 4 },
+        { key: "incoming", color: COLORS.legit, width: 2 }
+    ];
+
+    function resize() {
+        if (!canvas || !wrap) return;
+        const width = wrap.clientWidth;
+        if (!width) return;
+
+        W = width;
+        H = W < 520 ? 220 : 260;
+        ctx = setupCanvas(canvas, W, H);
+        draw();
+    }
+
+    function draw() {
+        if (!ctx || !W) return;
+
+        const padL = 58;
+        const padR = 14;
+        const padT = 14;
+        const padB = 42;
+        const plotW = W - padL - padR;
+        const plotH = H - padT - padB;
+        const history = sim.history;
+
+        ctx.clearRect(0, 0, W, H);
+
+        const tEnd = Math.max(HISTORY_SECONDS, sim.time);
+        const tStart = tEnd - HISTORY_SECONDS;
+
+        let maxValue = 10;
+        history.forEach((h) => {
+            maxValue = Math.max(maxValue, h.incoming, h.capacity);
+        });
+        if (sim.model && sim.settings) {
+            maxValue = Math.max(maxValue, sim.model.incoming, sim.settings.capacity);
+        }
+        const yMax = niceCeil(maxValue * 1.1);
+
+        const xOf = (t) => padL + ((t - tStart) / HISTORY_SECONDS) * plotW;
+        const yOf = (v) => padT + plotH - (v / yMax) * plotH;
+
+        // Grid + y-axis labels.
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+            const value = (yMax / 4) * i;
+            const y = yOf(value);
+            ctx.strokeStyle = i === 0 ? "#d8c3b7" : "#f0e7e1";
+            ctx.beginPath();
+            ctx.moveTo(padL, y);
+            ctx.lineTo(W - padR, y);
+            ctx.stroke();
+            drawText(ctx, formatNumber(value), padL - 6, y, { size: 10, color: COLORS.muted, align: "right" });
+        }
+
+        // x-axis ticks every 10 s.
+        for (let t = Math.ceil(tStart / 10) * 10; t <= tEnd; t += 10) {
+            const x = xOf(t);
+            ctx.strokeStyle = "#f0e7e1";
+            ctx.beginPath();
+            ctx.moveTo(x, padT);
+            ctx.lineTo(x, padT + plotH);
+            ctx.stroke();
+            drawText(ctx, `${t}`, x, padT + plotH + 12, { size: 10, color: COLORS.muted });
+        }
+
+        // Axis titles.
+        drawText(ctx, "Simulation time (seconds)", padL + plotW / 2, H - 9, { size: 11, color: COLORS.text });
+        ctx.save();
+        ctx.translate(13, padT + plotH / 2);
+        ctx.rotate(-Math.PI / 2);
+        drawText(ctx, "Requests / sec", 0, 0, { size: 11, color: COLORS.text });
+        ctx.restore();
+
+        if (!history.length) {
+            drawText(ctx, "Press Run Simulation to start recording traffic.", padL + plotW / 2, padT + plotH / 2, {
+                size: 12,
+                color: COLORS.muted
+            });
+            return;
+        }
+
+        const visible = history.filter((h) => h.t >= tStart);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(padL, padT - 4, plotW, plotH + 8);
+        ctx.clip();
+
+        // Capacity reference line (dashed).
+        ctx.strokeStyle = COLORS.capacity;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        visible.forEach((h, i) => {
+            const x = xOf(h.t);
+            const y = yOf(h.capacity);
+            if (i === 0) ctx.moveTo(x, y);
+            else {
+                ctx.lineTo(x, yOf(visible[i - 1].capacity));
+                ctx.lineTo(x, y);
+            }
+        });
+        if (visible.length === 1) ctx.lineTo(xOf(visible[0].t) + 6, yOf(visible[0].capacity));
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        SERIES.forEach((series) => {
+            ctx.strokeStyle = series.color;
+            ctx.fillStyle = series.color;
+            ctx.lineWidth = series.width;
+            ctx.lineJoin = "round";
+            ctx.beginPath();
+            visible.forEach((h, i) => {
+                const x = xOf(h.t);
+                const y = yOf(h[series.key]);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            const last = visible[visible.length - 1];
+            ctx.beginPath();
+            ctx.arc(xOf(last.t), yOf(last[series.key]), series.width + 1, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        ctx.restore();
+    }
+
+    return { resize, draw };
+})();
+
+// ---------- Smooth number counters ----------
+
+const counterFrames = new Map();
+
+function setNumber(id, value, decimals = 0) {
+    const el = $(id);
+    if (!el) return;
+
+    const from = el.dataset.value !== undefined ? Number(el.dataset.value) : value;
+    el.dataset.value = String(value);
+
+    if (counterFrames.has(id)) {
+        cancelAnimationFrame(counterFrames.get(id));
+        counterFrames.delete(id);
+    }
+
+    if (prefersReducedMotion() || from === value) {
+        el.textContent = formatNumber(value, decimals);
+        return;
+    }
+
+    const start = performance.now();
+    const duration = 450;
+
+    const step = (now) => {
+        const k = Math.min(1, (now - start) / duration);
+        const eased = 1 - Math.pow(1 - k, 3);
+        el.textContent = formatNumber(from + (value - from) * eased, decimals);
+
+        if (k < 1) {
+            counterFrames.set(id, requestAnimationFrame(step));
+        } else {
+            el.textContent = formatNumber(value, decimals);
+            counterFrames.delete(id);
+        }
+    };
+
+    counterFrames.set(id, requestAnimationFrame(step));
+}
+
+// ---------- Text builders ----------
+
+function summarySentence(s, m) {
+    const arrive = `${formatNumber(m.incoming)} ${plural(m.incoming, "request arrives", "requests arrive")} each second`;
+    const first = m.blocked > 0
+        ? `${arrive}; protection blocks ${formatNumber(m.blocked)}, leaving ${formatNumber(m.remaining)}.`
+        : `${arrive}.`;
+
+    const second = m.dropped > 0
+        ? `The server can process ${formatNumber(s.capacity)}, so ${formatNumber(m.dropped)} ${plural(m.dropped, "is", "are")} dropped.`
+        : `The server can process ${formatNumber(s.capacity)}, so all ${formatNumber(m.remaining)} ${plural(m.remaining, "is", "are")} processed.`;
+
+    return `${first} ${second}`;
+}
+
+function explanationText(s, m) {
+    const L = formatNumber(s.legitimate);
+    const parts = [];
+
+    if (s.scenario === "normal") {
+        parts.push(`Legitimate users send ${L} requests each second. There is no attacker in this scenario.`);
+    } else if (s.scenario === "dos") {
+        parts.push(
+            `Legitimate users send ${L} req/sec and one attacking source sends ${formatNumber(s.dosRate)} req/sec, ` +
+            `so ${formatNumber(m.incoming)} requests arrive each second.`
+        );
+    } else if (s.sources === 0) {
+        parts.push(`Legitimate users send ${L} req/sec. The DDoS source count is 0, so no attack traffic is added.`);
+    } else {
+        parts.push(
+            `Legitimate users send ${L} req/sec and ${formatNumber(s.sources)} attacking ${plural(s.sources, "source sends", "sources each send")} ` +
+            `${formatNumber(s.ratePerSource)} req/sec (${formatNumber(s.sources)} × ${formatNumber(s.ratePerSource)} = ${formatNumber(m.attackTotal)}), ` +
+            `so ${formatNumber(m.incoming)} requests arrive each second.`
+        );
+    }
+
+    if (s.scenario === "ddos" && s.protection) {
+        if (s.sources === 0) {
+            parts.push(`The rate-limit rule (at most ${formatNumber(s.limit)} req/sec per source) has nothing to block.`);
+        } else if (m.blocked > 0) {
+            parts.push(
+                `The rate-limit rule lets each source send at most ${formatNumber(s.limit)} req/sec. Each attacking source sends ` +
+                `${formatNumber(s.ratePerSource)}, so ${formatNumber(s.ratePerSource - s.limit)} per source × ${formatNumber(s.sources)} = ` +
+                `${formatNumber(m.blocked)} req/sec are blocked before reaching the server, leaving ${formatNumber(m.remaining)} req/sec. ` +
+                `The rule only counts requests per source; it does not know which requests are malicious.`
+            );
+        } else {
+            parts.push(
+                `The rate-limit rule allows up to ${formatNumber(s.limit)} req/sec per source. Each attacking source sends only ` +
+                `${formatNumber(s.ratePerSource)}, which is within the limit, so nothing is blocked. Low-rate sources look like ordinary users to this rule.`
+            );
+        }
+    } else if (s.scenario === "ddos" && s.sources > 0) {
+        parts.push("Rate-limit protection is off, so every request travels to the server.");
+    }
+
+    const pct = formatNumber(m.offeredPct, 1);
+
+    if (m.dropped > 0) {
+        parts.push(
+            `The server can process ${formatNumber(s.capacity)} req/sec, so ${formatNumber(m.dropped)} req/sec ${plural(m.dropped, "is", "are")} dropped ` +
+            `(offered load ${pct}% of capacity).`
+        );
+    } else if (m.health === "near") {
+        parts.push(
+            `The server can process ${formatNumber(s.capacity)} req/sec, so all ${formatNumber(m.remaining)} are processed, ` +
+            `but it is at ${pct}% of capacity with little spare room.`
+        );
+    } else {
+        parts.push(
+            `The server can process ${formatNumber(s.capacity)} req/sec, so all ${formatNumber(m.remaining)} are processed (${pct}% of capacity used).`
+        );
+    }
+
+    const hasAttack = m.attackTotal > 0;
+
+    if (m.dropped > 0 && !hasAttack) {
+        parts.push("Legitimate traffic alone is more than the server can handle, so some real users' requests fail. This is overload, not an attack.");
+    } else if (m.dropped > 0) {
+        const share = s.legitimate > 0 ? formatNumber((m.legitAccepted / s.legitimate) * 100, 0) : "0";
+        parts.push(
+            `The server cannot tell legitimate and attack requests apart, so real users lose requests too: only about ` +
+            `${formatNumber(m.legitAccepted, 1)} of their ${L} req/sec (${share}%) are processed.`
+        );
+    } else if (hasAttack && m.attackAccepted > 0) {
+        parts.push(
+            `Unblocked attack requests still use capacity: ${formatNumber(m.attackAccepted, 1)} of the ${formatNumber(m.accepted)} processed req/sec ` +
+            `are attack requests. Legitimate users are still served because capacity is not exceeded.`
+        );
+    } else {
+        parts.push("All legitimate requests are served.");
+    }
+
+    return parts.join(" ");
+}
+
+// ---------- Rendering ----------
+
+function renderMetrics() {
+    const s = sim.settings;
+    const m = sim.model;
+    if (!s || !m) return;
+
+    ["incoming", "accepted", "dropped", "blocked"].forEach((key) => {
+        setNumber(key, m[key]);
+        setNumber(`${key}Label`, m[key]);
+    });
+    setNumber("legitServed", m.legitAccepted, 1);
+
+    if ($("legitServedNote")) {
+        $("legitServedNote").textContent = `of ${formatNumber(s.legitimate)} legitimate req/sec`;
+    }
+
+    if ($("equationLine")) {
+        $("equationLine").textContent =
+            `${formatNumber(m.incoming)} incoming = ${formatNumber(m.accepted)} accepted + ` +
+            `${formatNumber(m.dropped)} dropped + ${formatNumber(m.blocked)} blocked`;
+    }
+
+    // Shared, labelled scale for every bar.
+    const scale = niceCeil(Math.max(m.incoming, s.capacity, 1));
+    const pct = (v) => `${Math.min(100, (v / scale) * 100)}%`;
+
+    $("incomingBar").style.width = pct(m.incoming);
+    $("acceptedBar").style.width = pct(m.accepted);
+    $("droppedBar").style.width = pct(m.dropped);
+    $("blockedBar").style.width = pct(m.blocked);
+    document.querySelectorAll(".cap-marker").forEach((marker) => {
+        marker.style.left = pct(s.capacity);
+    });
+    $("barScaleLabel").textContent = `Scale: 0 – ${formatNumber(scale)} req/sec`;
+    $("barAxisMid").textContent = formatNumber(scale / 2);
+    $("barAxisMax").textContent = formatNumber(scale);
+    $("barCapacityText").textContent = formatNumber(s.capacity);
+
+    // Scenario vs. server health are shown separately on purpose.
+    $("scenarioChip").textContent = `Scenario: ${SCENARIO_NAMES[s.scenario]}`;
+    $("scenarioChip").dataset.scenario = s.scenario;
+    $("status").textContent = HEALTH_LABELS[m.health];
+    $("status").className = `status ${HEALTH_CLASS[m.health]}`;
+
+    const healthClass = HEALTH_CLASS[m.health];
+    $("processedText").textContent = `${formatNumber(m.accepted)} / ${formatNumber(s.capacity)} req/sec`;
+    $("processedFill").style.width = `${Math.min(100, m.processedPct)}%`;
+    $("processedFill").className = `gauge-fill ${healthClass}`;
+    $("processedPct").textContent = `${formatNumber(m.processedPct, 1)}% of capacity in use (scale 0–100%)`;
+
+    $("offeredText").textContent = `${formatNumber(m.remaining)} req/sec · ${formatNumber(m.offeredPct, 1)}%`;
+    $("offeredFill").style.width = `${Math.min(200, m.offeredPct) / 2}%`;
+    $("offeredFill").className = `gauge-fill ${healthClass}`;
+    $("offeredNote").textContent =
+        (m.blocked > 0
+            ? `${formatNumber(m.incoming)} arriving − ${formatNumber(m.blocked)} blocked = ${formatNumber(m.remaining)} reaching the server. `
+            : "") +
+        (m.offeredPct > 200 ? "Bar capped at 200%; " : "") +
+        "Scale 0–200% of capacity; the marker shows capacity.";
+
+    $("statusSummary").textContent = summarySentence(s, m);
+    $("statusSummary").className = `status-summary ${healthClass}`;
+
+    const perDot = scene.getRepresentation();
+    $("sceneScale").textContent = perDot > 0
+        ? `Moving dots are representative requests: each dot ≈ ${formatNumber(perDot, 1)} requests. Path width grows with the rate on that path.`
+        : "No requests are being sent right now.";
+
+    $("trafficCanvas").setAttribute(
+        "aria-label",
+        `Live traffic diagram. Scenario ${SCENARIO_NAMES[s.scenario]}. Server ${HEALTH_LABELS[m.health]}. ${summarySentence(s, m)}`
+    );
+}
+
+function renderExplanation() {
+    if (sim.settings && sim.model && $("explanation")) {
+        $("explanation").textContent = explanationText(sim.settings, sim.model);
+    }
+}
+
+function renderLog() {
+    const list = $("eventLog");
+    if (!list) return;
+    list.replaceChildren();
+
+    if (!sim.log.length) {
+        const li = document.createElement("li");
+        li.className = "log-empty";
+        li.textContent = "No events yet. Press Run Simulation to begin.";
+        list.appendChild(li);
+        return;
+    }
+
+    sim.log.forEach((entry) => {
+        const li = document.createElement("li");
+        const time = document.createElement("span");
+        time.className = "log-time";
+        time.textContent = `t = ${entry.t} s`;
+        const text = document.createElement("span");
+        text.textContent = entry.text;
+        li.append(time, text);
+        list.appendChild(li);
+    });
+}
+
+function updateControls() {
+    const pause = $("pauseButton");
+    const step = $("stepButton");
+    const run = $("runSimulation");
+
+    if (pause) {
+        pause.disabled = !sim.running;
+        pause.textContent = sim.paused ? "▶ Resume" : "⏸ Pause";
+        pause.setAttribute("aria-pressed", String(sim.paused));
+    }
+    if (step) step.disabled = !(sim.running && sim.paused);
+    if (run) run.textContent = sim.running ? "Restart Simulation" : "Run Simulation";
+
+    if ($("simClock")) {
+        $("simClock").textContent =
+            `Simulation time: ${sim.time} s` + (sim.slow ? " · slow" : "");
+    }
+    if ($("sceneOverlay")) $("sceneOverlay").hidden = sim.running;
+    if ($("pausedBadge")) $("pausedBadge").hidden = !(sim.running && sim.paused);
+}
+
+function renderAll() {
+    renderMetrics();
+    renderExplanation();
+    chart.draw();
+    scene.render();
+    updateControls();
+}
+
+function setMessage(text) {
+    if ($("message")) $("message").textContent = text;
+}
+
+// ---------- Event log ----------
+
+function addLog(text) {
+    sim.log.unshift({ t: sim.time, text });
+    if (sim.log.length > LOG_LIMIT) sim.log.length = LOG_LIMIT;
+    renderLog();
+}
+
+function logSettingChanges(prev, next) {
+    if (prev.scenario !== next.scenario) {
+        addLog(`Scenario changed from ${SCENARIO_NAMES[prev.scenario]} to ${SCENARIO_NAMES[next.scenario]}.`);
+        return;
+    }
+
+    const changed = (label, a, b, unit = " req/sec") => {
+        if (a !== b) addLog(`${label} changed from ${formatNumber(a)} to ${formatNumber(b)}${unit}.`);
+    };
+
+    changed("Legitimate traffic", prev.legitimate, next.legitimate);
+    changed("Server capacity", prev.capacity, next.capacity);
+
+    if (next.scenario === "dos") changed("DoS attack rate", prev.dosRate, next.dosRate);
+
+    if (next.scenario === "ddos") {
+        changed("Attack sources", prev.sources, next.sources, "");
+        changed("Rate per source", prev.ratePerSource, next.ratePerSource);
+
+        if (prev.protection !== next.protection) {
+            addLog(next.protection
+                ? `Protection enabled (limit ${formatNumber(next.limit)} req/sec per source).`
+                : "Protection disabled.");
+        } else if (next.protection) {
+            changed("Per-source limit", prev.limit, next.limit);
         }
     }
 }
 
-// Scenario selection & controls setup
-const protectionCheckbox = $("protectionEnabled");
-if (protectionCheckbox) {
-    protectionCheckbox.addEventListener("change", () => {
-        const limitGroup = $("perSourceLimitGroup");
-        if (limitGroup) {
-            limitGroup.style.display = protectionCheckbox.checked ? "block" : "none";
-        }
+function logHealthChange(prev, next) {
+    const before = prev ? prev.health : "within";
+    if (before === next.health) return;
+
+    const pct = formatNumber(next.offeredPct, 1);
+
+    if (next.health === "overloaded") {
+        addLog(
+            `Incoming traffic exceeded server capacity (${formatNumber(next.remaining)} req/sec reaching a ` +
+            `${formatNumber(sim.settings.capacity)} req/sec server).`
+        );
+    } else if (before === "overloaded") {
+        addLog(next.health === "near"
+            ? `Server returned within capacity, but is near its limit (${pct}%).`
+            : "Server returned within capacity.");
+    } else if (next.health === "near") {
+        addLog(`Server is near capacity (${pct}% in use).`);
+    } else {
+        addLog("Server has comfortable spare capacity again.");
+    }
+}
+
+// ---------- Applying a new model ----------
+
+function applyModel(settings, model, { log = true } = {}) {
+    const prevSettings = sim.settings;
+    const prevModel = sim.model;
+
+    if (log && prevSettings) logSettingChanges(prevSettings, settings);
+
+    sim.settings = settings;
+    sim.model = model;
+
+    if (log) logHealthChange(prevModel, model);
+
+    scene.configure(settings, model);
+    renderAll();
+}
+
+function noteSource(source) {
+    if (source === "local" && !sim.notedLocal) {
+        sim.notedLocal = true;
+        addLog("Simulation server not reachable; using the same formulas in the browser.");
+    }
+}
+
+function pushHistory() {
+    const m = sim.model;
+    if (!m) return;
+
+    sim.history.push({
+        t: sim.time,
+        incoming: m.incoming,
+        accepted: m.accepted,
+        dropped: m.dropped,
+        blocked: m.blocked,
+        capacity: sim.settings.capacity
+    });
+
+    while (sim.history.length > HISTORY_SECONDS + 1) sim.history.shift();
+}
+
+// ---------- Timeline / animation loop (single rAF, no duplicate timers) ----------
+
+function tick() {
+    sim.time += 1;
+    pushHistory();
+    chart.draw();
+    updateControls();
+}
+
+function frame(now) {
+    sim.rafId = 0;
+    if (!sim.running || sim.paused) return;
+
+    const realDt = sim.lastFrame ? Math.min(0.1, (now - sim.lastFrame) / 1000) : 0;
+    sim.lastFrame = now;
+
+    const dt = realDt * (sim.slow ? SLOW_FACTOR : 1);
+    scene.update(dt);
+
+    sim.subSecond += dt;
+    while (sim.subSecond >= 1) {
+        sim.subSecond -= 1;
+        tick();
+    }
+
+    scene.render();
+    sim.rafId = requestAnimationFrame(frame);
+}
+
+function startLoop() {
+    if (sim.rafId) return;
+    sim.lastFrame = 0;
+    sim.rafId = requestAnimationFrame(frame);
+}
+
+function stopLoop() {
+    if (sim.rafId) cancelAnimationFrame(sim.rafId);
+    sim.rafId = 0;
+}
+
+// ---------- Controls ----------
+
+async function runSimulation() {
+    const read = readSettings(selectedScenario);
+
+    if (!read.ok) {
+        setMessage(read.errors[0]);
+        return;
+    }
+
+    clearTimeout(sim.debounceId);
+    const seq = ++sim.requestSeq;
+    const runBtn = $("runSimulation");
+
+    if (runBtn) runBtn.disabled = true;
+    setMessage("Calculating with the simulation server…");
+
+    let result;
+
+    try {
+        result = await requestModel(read.settings);
+    } catch (error) {
+        setMessage(error.message);
+        if (runBtn) runBtn.disabled = false;
+        return;
+    }
+
+    if (runBtn) runBtn.disabled = false;
+    if (seq !== sim.requestSeq) return;
+
+    stopLoop();
+    scene.clear();
+
+    sim.running = true;
+    sim.paused = false;
+    sim.time = 0;
+    sim.subSecond = 0;
+    sim.history = [];
+    sim.log = [];
+    sim.settings = null;
+    sim.model = null;
+
+    addLog(`Simulation started. Scenario: ${SCENARIO_NAMES[read.settings.scenario]}.`);
+    applyModel(read.settings, result.model);
+    noteSource(result.source);
+    pushHistory();
+    chart.draw();
+
+    setMessage(
+        `${SCENARIO_NAMES[read.settings.scenario]} simulation running. ` +
+        "Change any input to update it live."
+    );
+
+    updateControls();
+    startLoop();
+}
+
+async function applyLiveChanges() {
+    if (!sim.running) return;
+
+    const read = readSettings(selectedScenario);
+
+    if (!read.ok) {
+        setMessage(`${read.errors[0]} The demo keeps using the last valid values.`);
+        return;
+    }
+
+    if (sameSettings(read.settings, sim.settings)) return;
+
+    const seq = ++sim.requestSeq;
+    let result;
+
+    try {
+        result = await requestModel(read.settings);
+    } catch (error) {
+        if (seq === sim.requestSeq) setMessage(error.message);
+        return;
+    }
+
+    if (seq !== sim.requestSeq || !sim.running) return;
+
+    applyModel(read.settings, result.model);
+    noteSource(result.source);
+
+    setMessage(sim.paused
+        ? "Paused: new values applied. Press Step or Resume to watch them flow."
+        : "Live update applied.");
+}
+
+function scheduleLiveUpdate(delay = DEBOUNCE_MS) {
+    const read = readSettings(selectedScenario); // also marks invalid fields
+
+    if (!sim.running) {
+        setMessage(read.ok
+            ? "Settings ready. Press Run Simulation to start the live demonstration."
+            : read.errors[0]);
+        return;
+    }
+
+    clearTimeout(sim.debounceId);
+    sim.debounceId = setTimeout(applyLiveChanges, delay);
+}
+
+function pauseSimulation(reason = "Simulation paused.") {
+    if (!sim.running || sim.paused) return;
+    sim.paused = true;
+    stopLoop();
+    addLog(reason);
+    setMessage("Paused. Use Step to advance one simulated second, or Resume.");
+    scene.render();
+    updateControls();
+}
+
+function resumeSimulation() {
+    if (!sim.running || !sim.paused) return;
+    sim.paused = false;
+    addLog("Simulation resumed.");
+    setMessage("Simulation running.");
+    updateControls();
+    startLoop();
+}
+
+function stepSimulation() {
+    if (!sim.running || !sim.paused) return;
+
+    const substeps = 30;
+    for (let i = 0; i < substeps; i++) scene.update(1 / substeps);
+    tick();
+    scene.render();
+    setMessage(`Stepped to t = ${sim.time} s.`);
+}
+
+function updateInputRelevance() {
+    document.querySelectorAll("[data-used-in]").forEach((label) => {
+        const used = label.dataset.usedIn.split(" ").includes(selectedScenario);
+        label.classList.toggle("is-unused", !used);
     });
 }
 
@@ -424,301 +1865,144 @@ function updateScenarioControls() {
     const protBox = $("protectionEnabled");
 
     if (protLabel) {
-        protLabel.style.display = selectedScenario === "ddos" ? "block" : "none";
+        protLabel.style.display = selectedScenario === "ddos" ? "flex" : "none";
     }
     if (protGroup) {
-        protGroup.style.display = (selectedScenario === "ddos" && protBox && protBox.checked) ? "block" : "none";
+        protGroup.style.display =
+            selectedScenario === "ddos" && protBox && protBox.checked ? "flex" : "none";
+    }
+
+    updateInputRelevance();
+}
+
+function setScenario(scenario, { apply = true } = {}) {
+    selectedScenario = scenario;
+
+    document.querySelectorAll(".scenario").forEach((item) => {
+        const active = item.dataset.scenario === scenario;
+        item.classList.toggle("active", active);
+        item.setAttribute("aria-pressed", String(active));
+    });
+
+    updateScenarioControls();
+
+    if (!apply) return;
+
+    if (sim.running) {
+        scheduleLiveUpdate(0);
+    } else {
+        setMessage(`${SCENARIO_NAMES[scenario]} selected. Press Run Simulation.`);
     }
 }
+
+function resetSimulation({ announce = true } = {}) {
+    clearTimeout(sim.debounceId);
+    sim.requestSeq++; // ignore any request still in flight
+    stopLoop();
+
+    Object.entries(DEFAULT_INPUTS).forEach(([id, value]) => {
+        if ($(id)) $(id).value = value;
+    });
+    if ($("protectionEnabled")) $("protectionEnabled").checked = false;
+
+    setScenario("normal", { apply: false });
+
+    sim.running = false;
+    sim.paused = false;
+    sim.time = 0;
+    sim.subSecond = 0;
+    sim.history = [];
+    sim.log = [];
+
+    const read = readSettings("normal");
+    sim.settings = read.settings;
+    sim.model = computeModel(read.settings);
+
+    scene.clear();
+    scene.configure(sim.settings, sim.model);
+    renderAll();
+    renderLog();
+
+    setMessage(announce
+        ? "Simulation reset to the default values. Press Run Simulation to start again."
+        : "Ready. Press Run Simulation to start the live demonstration.");
+}
+
+// ---------- Wiring ----------
 
 document.querySelectorAll(".scenario").forEach((button) => {
-    button.setAttribute(
-        "aria-pressed",
-        String(button.dataset.scenario === selectedScenario)
-    );
-
-    button.addEventListener("click", () => {
-        selectedScenario = button.dataset.scenario;
-
-        document.querySelectorAll(".scenario").forEach((item) => {
-            const active = item === button;
-
-            item.classList.toggle("active", active);
-            item.setAttribute("aria-pressed", String(active));
-        });
-
-        updateScenarioControls();
-
-        if ($("message")) {
-            $("message").textContent =
-                `${button.textContent} selected. Run the simulation.`;
-        }
-    });
+    button.setAttribute("aria-pressed", String(button.dataset.scenario === selectedScenario));
+    button.addEventListener("click", () => setScenario(button.dataset.scenario));
 });
 
-updateScenarioControls();
+Object.keys(INPUT_RULES).forEach((id) => {
+    const input = $(id);
+    if (input) input.addEventListener("input", () => scheduleLiveUpdate());
+});
 
-if ($("runSimulation")) {
-    $("runSimulation").addEventListener(
-        "click",
-        runSimulation
-    );
+if ($("protectionEnabled")) {
+    $("protectionEnabled").addEventListener("change", () => {
+        updateScenarioControls();
+        scheduleLiveUpdate(0);
+    });
 }
 
-// ==========================================
-// 4. VISUAL TRAFFIC SIMULATION
-// ==========================================
+if ($("runSimulation")) $("runSimulation").addEventListener("click", runSimulation);
 
-(() => {
-    const runButton = $("runSimulation");
-    const panel = $("trafficVisualization");
-    const topology = $("trafficTopology");
+if ($("pauseButton")) {
+    $("pauseButton").addEventListener("click", () => {
+        if (sim.paused) resumeSimulation();
+        else pauseSimulation();
+    });
+}
 
-    if (!runButton || !panel || !topology) {
-        console.warn(
-            "Traffic visualization elements were not found. Check the HTML IDs."
-        );
-        return;
-    }
+if ($("stepButton")) $("stepButton").addEventListener("click", stepSimulation);
+if ($("resetButton")) $("resetButton").addEventListener("click", () => resetSimulation());
 
-    function numberFromInput(id) {
-        const element = $(id);
-        return element ? Number(element.value) || 0 : 0;
-    }
-
-    function numberFromOutput(id) {
-        const element = $(id);
-        return element
-            ? Number(element.textContent.replace(/,/g, "")) || 0
-            : 0;
-    }
-
-    function makeNode(icon, name, detail, extraClass = "") {
-        return `
-            <div class="topology-node ${extraClass}">
-                <span class="node-icon">${icon}</span>
-                <strong>${name}</strong>
-                <small>${detail}</small>
-            </div>
-        `;
-    }
-
-    function makeArrow(label) {
-        return `
-            <div class="topology-arrow">
-                <span class="arrow-line">
-                    <i class="moving-packet"></i>
-                </span>
-                <span>${label}</span>
-            </div>
-        `;
-    }
-
-    function drawNetwork(
-        scenario,
-        legitimate,
-        attackRate,
-        sourceCount,
-        ratePerSource,
-        capacity,
-        incoming,
-        accepted,
-        dropped
-    ) {
-        if (scenario === "normal") {
-            topology.innerHTML = `
-                <div class="topology-row">
-                    ${makeNode(
-                        "💻",
-                        "Client PC",
-                        `${legitimate} req/sec · Sender`
-                    )}
-
-                    ${makeArrow(`${legitimate} req/sec`)}
-
-                    ${makeNode(
-                        "🔀",
-                        "Network Switch",
-                        "Forwards packets"
-                    )}
-
-                    ${makeArrow("To server")}
-
-                    ${makeNode(
-                        "🖥️",
-                        "Destination Server",
-                        `Capacity: ${capacity} req/sec`,
-                        "server-node"
-                    )}
-                </div>
-            `;
-        } else if (scenario === "dos") {
-            topology.innerHTML = `
-                <div class="topology-row">
-                    ${makeNode(
-                        "💻",
-                        "Legitimate PC",
-                        `${legitimate} req/sec`
-                    )}
-
-                    ${makeArrow("Legitimate traffic")}
-
-                    ${makeNode(
-                        "🖥️",
-                        "Target Server",
-                        `Accepted: ${accepted} req/sec`,
-                        "server-node"
-                    )}
-                </div>
-
-                <div class="topology-row">
-                    ${makeNode(
-                        "⚠️",
-                        "Single Attack Source",
-                        `${attackRate} attack req/sec`,
-                        "dropped-node"
-                    )}
-
-                    ${makeArrow("Additional requests")}
-
-                    ${makeNode(
-                        "🖥️",
-                        "Target Server",
-                        `Dropped: ${dropped} req/sec`,
-                        "server-node"
-                    )}
-                </div>
-            `;
-        } else {
-            const visibleCount = Math.min(
-                Math.max(sourceCount, 1),
-                6
-            );
-
-            const sources = Array.from(
-                { length: visibleCount },
-                (_, index) => makeNode(
-                    "⚠️",
-                    `Source ${index + 1}`,
-                    `${ratePerSource} req/sec`,
-                    "dropped-node"
-                )
-            ).join("");
-
-            const extraMessage =
-                sourceCount > visibleCount
-                    ? `<p class="visual-status">
-                        Showing ${visibleCount} of ${sourceCount} simulated sources.
-                        Combined attack traffic: ${attackRate} req/sec.
-                       </p>`
-                    : "";
-
-            topology.innerHTML = `
-                <div class="topology-row">
-                    ${makeNode(
-                        "💻",
-                        "Legitimate PC",
-                        `${legitimate} req/sec`
-                    )}
-
-                    ${sources}
-                </div>
-
-                <div class="topology-row">
-                    ${makeArrow(`${incoming} req/sec combined`)}
-
-                    ${makeNode(
-                        "🖥️",
-                        "Target Server",
-                        `Accepted: ${accepted} · Dropped: ${dropped}`,
-                        "server-node"
-                    )}
-                </div>
-
-                ${extraMessage}
-            `;
+if ($("slowMotion")) {
+    $("slowMotion").addEventListener("change", (event) => {
+        sim.slow = event.target.checked;
+        if (sim.running) {
+            addLog(sim.slow
+                ? `Slow animation on (${Math.round(SLOW_FACTOR * 100)}% speed).`
+                : "Slow animation off.");
         }
-    }
+        updateControls();
+    });
+}
 
-    function handleSimulationResult(result, payload) {
-        const scenario = result.scenario || selectedScenario;
-        const legitimate = result.legitimate_incoming;
-        const capacity = result.capacity;
-        const attackRate = result.attack_incoming || 0;
-        const sourceCount = (payload && payload.attacker_count !== undefined) ? payload.attacker_count : (scenario === "dos" ? 1 : 5);
-        const ratePerSource = (payload && payload.attack_rate_per_source !== undefined) ? payload.attack_rate_per_source : (scenario === "dos" ? attackRate : 40);
-        const incoming = result.incoming;
-        const accepted = result.accepted;
-        const dropped = result.dropped;
-        const blocked = result.blocked || 0;
-
-        if ($("visualTitle")) {
-            $("visualTitle").textContent =
-                scenario === "normal"
-                    ? "Normal Traffic: Client-to-Server Transfer"
-                    : scenario === "dos"
-                        ? "DoS: Single Attack Source"
-                        : (blocked > 0 ? "DDoS: Multi-Source Traffic with Rate Limiting" : "DDoS: Multiple Attack Sources");
-        }
-
-        if ($("visualDescription")) {
-            $("visualDescription").textContent =
-                scenario === "normal"
-                    ? "Legitimate packets travel through the switch to the destination server."
-                    : scenario === "dos"
-                        ? "One simulated attack source adds traffic alongside legitimate requests."
-                        : (blocked > 0
-                            ? `Rate limiting filtered ${blocked} req/s before reaching server. Server received ${incoming} req/s.`
-                            : "Multiple simulated sources send traffic towards the same target server.");
-        }
-
-        if ($("visualIncoming")) $("visualIncoming").textContent = incoming;
-        if ($("visualAccepted")) $("visualAccepted").textContent = accepted;
-        if ($("visualDropped")) $("visualDropped").textContent = dropped;
-        if ($("visualBlocked")) $("visualBlocked").textContent = blocked;
-        if ($("visualCapacity")) $("visualCapacity").textContent = capacity;
-
-        if ($("visualStatus")) {
-            $("visualStatus").textContent =
-                result.message || (
-                    dropped > 0
-                        ? `${dropped} requests/sec exceed the available capacity in this model.`
-                        : "All incoming requests fit within the configured capacity."
-                );
-        }
-
-        drawNetwork(
-            scenario,
-            legitimate,
-            attackRate,
-            sourceCount,
-            ratePerSource,
-            capacity,
-            incoming,
-            accepted,
-            dropped
-        );
-
-        panel.hidden = false;
-        panel.classList.remove("is-running");
-
-        void panel.offsetWidth;
-
-        panel.classList.add("is-running");
-
-        panel.scrollIntoView({
-            behavior: "smooth",
-            block: "nearest"
+// Pause and release the animation loop when leaving the simulation section.
+document.addEventListener("lessonShown", (event) => {
+    if (event.detail.id !== "simulation") {
+        pauseSimulation("Simulation paused (left the Interactive Simulation section).");
+    } else {
+        requestAnimationFrame(() => {
+            scene.resize();
+            chart.resize();
         });
     }
+});
 
-    document.addEventListener("simulationCompleted", (event) => {
-        if (event.detail && event.detail.result) {
-            handleSimulationResult(event.detail.result, event.detail.payload);
-        }
+if (typeof ResizeObserver !== "undefined") {
+    const observer = new ResizeObserver(() => {
+        scene.resize();
+        chart.resize();
     });
-})();
+    if ($("sceneWrap")) observer.observe($("sceneWrap"));
+    if ($("chartWrap")) observer.observe($("chartWrap"));
+} else {
+    window.addEventListener("resize", () => {
+        scene.resize();
+        chart.resize();
+    });
+}
 
+if (motionQuery.addEventListener) {
+    motionQuery.addEventListener("change", () => {
+        scene.clear();
+        scene.render();
+    });
+}
 // ==========================================
 // 5. TEN-QUESTION ASSESSMENT
 // ==========================================
@@ -884,5 +2168,7 @@ if (feedbackForm) {
 
 renderResources();
 
-// Show the default Normal Traffic results on page load.
-displayResults(simulateNormal(20, 100));
+// Initialize the live simulation on page load
+if (typeof resetSimulation === "function") {
+    resetSimulation({ announce: false });
+}
