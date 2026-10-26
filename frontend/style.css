@@ -1759,8 +1759,7 @@ body.menu-collapsed .resources { display: none; }
 }
 
 .tour-analogy-box {
-    display: flex;
-    gap: 10px;
+    display: block;
     background: #fff8f4;
     border-left: 3.5px solid var(--brown);
     border-radius: 0 8px 8px 0;
@@ -1771,14 +1770,23 @@ body.menu-collapsed .resources { display: none; }
     color: #4a382f;
 }
 
-.tour-analogy-icon {
-    font-size: 16px;
-    flex-shrink: 0;
-    line-height: 1.3;
+.tour-analogy-content {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.tour-analogy-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--brown-dark);
 }
 
 .tour-analogy-text {
-    flex: 1;
+    font-size: 13px;
+    line-height: 1.5;
 }
 
 .tour-analogy-box[hidden],

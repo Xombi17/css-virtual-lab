@@ -16,7 +16,7 @@
         <p>• Virtual Network Security Lab • DoS & DDoS Simulation</p>
     </div>
     <div class="topbar-actions">
-        <button class="tour-header-button" id="startTourButton" aria-label="Take Guided Tour">💡 Take Tour</button>
+        <button class="tour-header-button" id="startTourButton" aria-label="Take Guided Tour">Take Tour</button>
         <button class="share-button" id="shareButton">↗ Share</button>
     </div>
 </header>
@@ -818,7 +818,7 @@
         <!-- Learning Path Progress Checklist -->
         <div class="learning-path-card" id="learningPathCard" aria-label="Learning Path Progress">
             <div class="learning-path-head">
-                <span class="learning-path-title">🎯 Learning Path</span>
+                <span class="learning-path-title">Learning Path</span>
                 <span class="learning-path-count" id="learningPathCount">0 / 6</span>
             </div>
             <div class="learning-progress-track" role="progressbar" aria-label="Learning progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="learningProgressBar">
@@ -854,12 +854,14 @@
             <h3 class="tour-title" id="tourTitle">Welcome to the Lab!</h3>
             <p class="tour-text" id="tourText"></p>
             <div class="tour-analogy-box" id="tourAnalogyBox" hidden>
-                <span class="tour-analogy-icon" aria-hidden="true">💡</span>
-                <span class="tour-analogy-text" id="tourAnalogyText"></span>
+                <div class="tour-analogy-content">
+                    <span class="tour-analogy-label">Analogy</span>
+                    <span class="tour-analogy-text" id="tourAnalogyText"></span>
+                </div>
             </div>
             <div class="tour-finish-actions" id="tourFinishActions" hidden>
-                <button type="button" class="tour-finish-btn primary" id="tourStartSimBtn">🎮 Start with the Simulation</button>
-                <button type="button" class="tour-finish-btn secondary" id="tourStartAimBtn">📖 Start from Aim & Objectives</button>
+                <button type="button" class="tour-finish-btn primary" id="tourStartSimBtn">Start with the Simulation</button>
+                <button type="button" class="tour-finish-btn secondary" id="tourStartAimBtn">Start from Aim & Objectives</button>
             </div>
         </div>
         <div class="tour-card-footer" id="tourStandardFooter">

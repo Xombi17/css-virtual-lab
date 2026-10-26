@@ -2219,7 +2219,7 @@ function updateLearningPathUI(visitedList) {
     const pct = Math.round((completed / total) * 100);
 
     if (countEl) {
-        countEl.textContent = completed === total ? "🎉 All 6 Done!" : `${completed} / ${total}`;
+        countEl.textContent = completed === total ? "All 6 Completed" : `${completed} / ${total}`;
     }
     if (fillEl) {
         fillEl.style.width = `${pct}%`;
@@ -2271,39 +2271,39 @@ const tourSteps = [
     {
         id: "welcome",
         selector: null,
-        title: "Welcome to the DoS & DDoS Virtual Lab! 👋",
+        title: "Welcome to the DoS & DDoS Virtual Lab",
         text: "A Denial of Service (DoS) attack floods a server with requests so real users can't get through. In Distributed DoS (DDoS), the attack is launched by hundreds or thousands of devices at once! By the end of this lab, you will be able to spot an attack, tell DoS from DDoS, and defend your server.",
         analogy: "Think of a server as a shop counter with 1 cashier. Requests are customers waiting to order. Normal traffic is polite customers arriving within the cashier's processing capacity."
     },
     {
         id: "header",
         selector: ".topbar",
-        title: "Navigation & Quick Actions 🧭",
+        title: "Navigation & Quick Actions",
         text: "The header shows your subject and course. Use the back arrow (←) to return to the laboratory list, or the Share button (↗) to copy a direct link to this experiment for your lab partner."
     },
     {
         id: "navigator",
         selector: ".toolbar",
-        title: "Experiment Manual & Page Navigator 📖",
+        title: "Experiment Manual & Page Navigator",
         text: "This workbook guides you step-by-step through the lab curriculum. Use the '‹' and '›' buttons or check the page counter (e.g. 1 / 9) to advance sequentially through the chapters."
     },
     {
         id: "menu",
         selector: "#menuButton",
-        title: "Sidebar Menu Toggle ☰",
+        title: "Sidebar Menu Toggle",
         text: "Click this hamburger menu button anytime to collapse the sidebar for a distraction-free, full-width simulation view. Click it again to bring the sidebar back."
     },
     {
         id: "sidebar",
         selector: "#resourcesPanel",
-        title: "Explanation Resources & Filter Tabs 📑",
+        title: "Explanation Resources & Filter Tabs",
         text: "Your complete curriculum directory! Filter resources with the All, Video, and Interactive tabs at the top to quickly jump between study texts, multimedia videos, and interactive simulations."
     },
     {
         id: "aim",
         selector: '[data-resource="aim"]',
         fallbackSelector: "#aim",
-        title: "Aim & Objectives — What You'll Achieve 🎯",
+        title: "Aim & Objectives — What You'll Achieve",
         text: "Start here to understand the core mission of this experiment: learn how data packets travel across networks, why servers have finite request capacities, and how excess volume affects service availability.",
         onEnter: () => showResource("aim")
     },
@@ -2311,7 +2311,7 @@ const tourSteps = [
         id: "theory",
         selector: '[data-resource="theory"]',
         fallbackSelector: "#theory",
-        title: "Theory — Understand Concepts First 📚",
+        title: "Theory — Understand Concepts First",
         text: "Explore network capacity, packet flow models, request queuing, and the key architectural differences between single-source DoS and distributed DDoS attacks.",
         analogy: "DoS is like one aggressive person shouting 1,000 fake orders at the counter. DDoS is a huge hired mob shouting orders from every door at once, completely blocking legitimate customers!",
         onEnter: () => showResource("theory")
@@ -2320,14 +2320,14 @@ const tourSteps = [
         id: "procedure",
         selector: '[data-resource="procedure"]',
         fallbackSelector: "#procedure",
-        title: "Procedure — Step-by-Step Instructions 📋",
+        title: "Procedure — Step-by-Step Instructions",
         text: "Follow these clear steps: set your legitimate traffic rate, choose an attack scenario, and observe packet arrivals, drops, and server capacity utilization.",
         onEnter: () => showResource("procedure")
     },
     {
         id: "simulation",
         selector: "#simulation",
-        title: "Interactive Traffic Simulation — Play & Experiment! 🎮",
+        title: "Interactive Traffic Simulation — Hands-On Testing",
         text: "This is your hands-on laboratory! Adjust customer request rates, test single vs. multi-attacker floods, toggle upstream rate limiting, and watch animated packets flow in real time.",
         analogy: "Rate limiting is like placing a bouncer at the shop entrance: 'Maximum 10 orders per customer!' Greedy attackers get blocked outside while honest shoppers enter freely!",
         onEnter: () => showResource("simulation")
@@ -2336,7 +2336,7 @@ const tourSteps = [
         id: "assessment",
         selector: '[data-resource="assessment"]',
         fallbackSelector: "#assessment",
-        title: "Assessment — Check What You Learned ✍️",
+        title: "Assessment — Quiz & Knowledge Check",
         text: "Test your understanding with 10 interactive questions! Instant feedback highlights correct answers and explains the underlying cybersecurity principles.",
         onEnter: () => showResource("assessment")
     },
@@ -2344,14 +2344,14 @@ const tourSteps = [
         id: "feedback",
         selector: '[data-resource="feedback"]',
         fallbackSelector: "#feedback",
-        title: "Feedback & References — Tell Us What You Think 💬",
+        title: "Feedback & References",
         text: "Review trusted cybersecurity references from Cloudflare and textbooks, and submit your local feedback on this virtual lab experiment.",
         onEnter: () => showResource("feedback")
     },
     {
         id: "finish",
         selector: null,
-        title: "🎉 You're Ready to Explore!",
+        title: "You are Ready to Explore!",
         text: "You know where everything is. You can jump straight into the live interactive simulation to launch an attack scenario, or start reading sequentially from Aim & Objectives.",
         isFinish: true
     }
@@ -2519,7 +2519,7 @@ function renderTourStep(stepIndex) {
             backBtn.disabled = stepIndex === 0;
         }
         if (nextBtn) {
-            nextBtn.textContent = stepIndex === tourSteps.length - 2 ? "Finish 🎉" : "Next ›";
+            nextBtn.textContent = stepIndex === tourSteps.length - 2 ? "Finish" : "Next ›";
         }
     }
 
