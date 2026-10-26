@@ -58,8 +58,8 @@
             or dropped.
         </li>
         <li>
-            Compare normal traffic, single-source DoS traffic, and
-            multiple-source DDoS traffic.
+            Compare normal traffic, single-attacker DoS traffic, and
+            multi-attacker DDoS traffic.
         </li>
         <li>
             Visualize traffic flow and observe the results of different
@@ -109,7 +109,7 @@
 
     <h3>3. Denial of Service (DoS)</h3>
     <p>
-        A Denial of Service (DoS) scenario involves a single simulated source
+        A Denial of Service (DoS) scenario involves a single simulated attacker
         generating excessive requests towards a target server. When legitimate
         and attack traffic exceed the server's capacity, some requests are
         dropped. This can reduce the availability of services for legitimate
@@ -119,10 +119,10 @@
     <h3>4. Distributed Denial of Service (DDoS)</h3>
     <p>
         A Distributed Denial of Service (DDoS) scenario involves multiple
-        sources sending requests towards the same target server. Their
+        attackers sending requests towards the same target server. Their
         combined traffic can overwhelm the server's available capacity.
-        Unlike the single-source DoS scenario, the traffic originates from
-        several simulated sources.
+        Unlike the single-attacker DoS scenario, the traffic originates from
+        several distributed attackers.
     </p>
 
     <h3>5. Traffic Flow in the Simulation</h3>
@@ -204,7 +204,7 @@
         </li>
         <li>
             For DoS, configure the attack request rate. For DDoS, configure
-            the number of simulated sources and the request rate per source.
+            the number of simulated attackers and the request rate per attacker.
         </li>
         <li>
             Click <strong>Run Simulation</strong> to execute the selected
@@ -212,7 +212,7 @@
         </li>
         <li>
             Observe the visual representation of traffic travelling from
-            the client or simulated sources towards the destination server.
+            the client or simulated attackers towards the destination server.
         </li>
         <li>
             Examine the incoming, accepted, and dropped request rates,
@@ -244,10 +244,10 @@
         </li>
         <li>
             <strong>DoS:</strong> Additional traffic from one simulated
-            source may exceed capacity, causing requests to be dropped.
+            attacker may exceed capacity, causing requests to be dropped.
         </li>
         <li>
-            <strong>DDoS:</strong> Traffic from multiple simulated sources
+            <strong>DDoS:</strong> Traffic from multiple simulated attackers
             is combined and may exceed the server's capacity.
         </li>
     </ul>
@@ -284,30 +284,30 @@
                     <label data-used-in="dos">DoS attack rate (req/sec)
                         <input id="dosRate" type="number" min="0" step="1"
                                max="100000" value="120" inputmode="numeric">
-                        <small class="field-hint">DoS only: one attacking source sends this many req/sec.</small>
+                        <small class="field-hint">DoS only: one attacker sends this many req/sec.</small>
                     </label>
-                    <label data-used-in="ddos">DDoS source count
+                    <label data-used-in="ddos">DDoS attacker count
                         <input id="attackerCount" type="number" min="0" step="1"
                                max="1000" value="5" inputmode="numeric">
-                        <small class="field-hint">DDoS only: number of attacking sources (whole number).</small>
+                        <small class="field-hint">DDoS only: number of attackers (whole number).</small>
                     </label>
-                    <label data-used-in="ddos">Rate per source (req/sec)
+                    <label data-used-in="ddos">Rate per attacker (req/sec)
                         <input id="ratePerSource" type="number" min="0" step="1"
                                max="100000" value="40" inputmode="numeric">
-                        <small class="field-hint">DDoS only: requests per second from each attacking source.</small>
+                        <small class="field-hint">DDoS only: requests per second from each attacker.</small>
                     </label>
                     <label id="protectionLabel">Rate Limit Protection
                         <span style="display:flex; align-items:center; gap:8px; margin-top:8px;">
                             <input id="protectionEnabled" type="checkbox" style="width:auto; cursor:pointer;">
-                            <span style="font-size:12px; font-weight:normal;">Enable per-source filter</span>
+                            <span style="font-size:12px; font-weight:normal;">Enable per-attacker filter</span>
                         </span>
                     </label>
-                    <label id="perSourceLimitGroup" style="display:none;">Per-source limit (req/sec)
+                    <label id="perSourceLimitGroup" style="display:none;">Per-attacker limit (req/sec)
                         <input id="perSourceLimit" type="number" min="0" step="1"
                                max="100000" value="10" inputmode="numeric">
-                        <small class="field-hint">Each source may send at most this many req/sec;
+                        <small class="field-hint">Each attacker/client may send at most this many req/sec;
                         anything above it is blocked. The rule only counts requests per
-                        source &mdash; it cannot tell which requests are malicious.</small>
+                        attacker &mdash; it cannot tell which requests are malicious.</small>
                     </label>
                 </div>
 
@@ -578,7 +578,7 @@
                         Your browser does not support HTML5 video playback.
                     </video>
                     <div class="video-caption">
-                        <span><strong>Scenario:</strong> Single-Source DoS Flooding</span>
+                        <span><strong>Scenario:</strong> Single-Attacker DoS Flooding</span>
                         <span><code>videos/dos_attack.mp4</code></span>
                     </div>
                 </div>
@@ -591,7 +591,7 @@
                 <div class="info-box">
                     <strong>Key Observations:</strong>
                     <ul>
-                        <li><strong>Resource Exhaustion:</strong> An individual high-rate attacking source transmits at an excessive volume that rapidly overtakes server capacity.</li>
+                        <li><strong>Resource Exhaustion:</strong> An individual high-rate attacker transmits at an excessive volume that rapidly overtakes server capacity.</li>
                         <li><strong>Collateral Damage to Legitimate Users:</strong> In an unmitigated environment, legitimate requests must compete with attack packets for finite server capacity and are dropped proportionally.</li>
                         <li><strong>Severe Service Degradation:</strong> Utilization caps out at 100%, request drops spike, and legitimate users experience timeouts and connection failures.</li>
                     </ul>
@@ -620,28 +620,28 @@
                         Your browser does not support HTML5 video playback.
                     </video>
                     <div class="video-caption">
-                        <span><strong>Scenario:</strong> Multi-Source Botnet Attack & Rate Limiter Defense</span>
+                        <span><strong>Scenario:</strong> Multi-Attacker Botnet Attack & Rate Limiter Defense</span>
                         <span><code>videos/ddos_attack.mp4</code></span>
                     </div>
                 </div>
 
                 <h3>Overview & Key Concepts</h3>
                 <p>
-                    Observe a coordinated Distributed Denial of Service (DDoS) attack launched from multiple distributed bot nodes simultaneously, followed by upstream per-source rate-limiting mitigation.
+                    Observe a coordinated Distributed Denial of Service (DDoS) attack launched from multiple distributed bot nodes simultaneously, followed by upstream per-attacker rate-limiting mitigation.
                 </p>
 
                 <div class="info-box">
                     <strong>Key Observations:</strong>
                     <ul>
                         <li><strong>Distributed Botnet Power:</strong> Multiple attacking nodes generate traffic simultaneously. Even if each individual bot stays under typical alert levels, their cumulative volume easily overloads destination servers.</li>
-                        <li><strong>Per-Source Rate Limiting Defense:</strong> An upstream filter inspects arrival rates per source IP. Nodes exceeding the configured threshold have their excess requests blocked before reaching origin infrastructure.</li>
+                        <li><strong>Per-Attacker Rate Limiting Defense:</strong> An upstream filter inspects arrival rates per attacking IP. Nodes exceeding the configured threshold have their excess requests blocked before reaching origin infrastructure.</li>
                         <li><strong>Service Preservation:</strong> Blocked attack traffic reduces incoming load below server capacity, allowing legitimate client traffic to be accepted with 0% drop rate.</li>
                     </ul>
                 </div>
 
                 <div class="formula">
                     <strong>Mathematical Governing Condition with Rate Limiting:</strong><br>
-                    <code>Attack Allowed = Attacker Count &times; min(Rate Per Source, Per-Source Limit)</code><br>
+                    <code>Attack Allowed = Attacker Count &times; min(Rate Per Attacker, Per-Attacker Limit)</code><br>
                     <code>Blocked Requests = Total Offered Attack - Attack Allowed</code>
                 </div>
             </article>
@@ -661,9 +661,9 @@
     </fieldset>
 
     <fieldset>
-        <legend>2. What distinguishes DDoS from a single-source DoS?</legend>
+        <legend>2. What distinguishes DDoS from a single-attacker DoS?</legend>
         <label><input type="radio" name="q2" value="a" required> It never affects capacity</label>
-        <label><input type="radio" name="q2" value="b"> Traffic comes from multiple sources</label>
+        <label><input type="radio" name="q2" value="b"> Traffic comes from multiple attackers</label>
         <label><input type="radio" name="q2" value="c"> It always has zero dropped requests</label>
     </fieldset>
 
@@ -682,17 +682,17 @@
     </fieldset>
 
     <fieldset>
-        <legend>5. In a DoS scenario, how many attack sources are simulated?</legend>
-        <label><input type="radio" name="q5" value="a" required> Multiple independent sources</label>
-        <label><input type="radio" name="q5" value="b"> No attack sources</label>
-        <label><input type="radio" name="q5" value="c"> One attack source</label>
+        <legend>5. In a DoS scenario, how many attackers are simulated?</legend>
+        <label><input type="radio" name="q5" value="a" required> Multiple independent attackers</label>
+        <label><input type="radio" name="q5" value="b"> No attackers</label>
+        <label><input type="radio" name="q5" value="c"> One attacker</label>
     </fieldset>
 
     <fieldset>
         <legend>6. What does server capacity represent in this experiment?</legend>
         <label><input type="radio" name="q6" value="a" required> The number of computers in the network</label>
         <label><input type="radio" name="q6" value="b"> The maximum request rate the model can accept</label>
-        <label><input type="radio" name="q6" value="c"> The number of attack sources</label>
+        <label><input type="radio" name="q6" value="c"> The number of attackers</label>
     </fieldset>
 
     <fieldset>
@@ -703,7 +703,7 @@
     </fieldset>
 
     <fieldset>
-        <legend>8. Five simulated DDoS sources each generate 40 req/sec. What is their combined attack traffic?</legend>
+        <legend>8. Five simulated DDoS attackers each generate 40 req/sec. What is their combined attack traffic?</legend>
         <label><input type="radio" name="q8" value="a" required> 45 req/sec</label>
         <label><input type="radio" name="q8" value="b"> 200 req/sec</label>
         <label><input type="radio" name="q8" value="c"> 40 req/sec</label>
@@ -713,7 +713,7 @@
         <legend>9. What is the purpose of rate limiting?</legend>
         <label><input type="radio" name="q9" value="a" required> To restrict requests to a configured rate</label>
         <label><input type="radio" name="q9" value="b"> To increase every request rate without limits</label>
-        <label><input type="radio" name="q9" value="c"> To create more attack sources</label>
+        <label><input type="radio" name="q9" value="c"> To create more attackers</label>
     </fieldset>
 
     <fieldset>

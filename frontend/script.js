@@ -239,9 +239,9 @@ const INPUT_RULES = {
     legitimateRate: { label: "Legitimate traffic", min: 0, max: 100000 },
     capacity: { label: "Server capacity", min: 1, max: 100000 },
     dosRate: { label: "DoS attack rate", min: 0, max: 100000 },
-    attackerCount: { label: "DDoS source count", min: 0, max: 1000 },
-    ratePerSource: { label: "Rate per source", min: 0, max: 100000 },
-    perSourceLimit: { label: "Per-source limit", min: 0, max: 100000 }
+    attackerCount: { label: "DDoS attacker count", min: 0, max: 1000 },
+    ratePerSource: { label: "Rate per attacker", min: 0, max: 100000 },
+    perSourceLimit: { label: "Per-attacker limit", min: 0, max: 100000 }
 };
 
 const SCENARIO_NAMES = { normal: "Normal", dos: "DoS", ddos: "DDoS" };
@@ -932,7 +932,7 @@ const scene = (() => {
         if (s.scenario === "dos") {
             const icon = L.attackIcons[0];
             drawAttacker(icon.x, icon.y, true);
-            drawText(ctx, "1 attack source", L.srcX, icon.y + 28, { size: small, weight: "bold" });
+            drawText(ctx, "1 attacker", L.srcX, icon.y + 28, { size: small, weight: "bold" });
             drawText(ctx, `${formatNumber(s.dosRate)} req/s`, L.srcX, icon.y + 42, { size: small, color: COLORS.muted });
         }
 
@@ -940,7 +940,7 @@ const scene = (() => {
             const titleY = H * 0.43;
             drawText(
                 ctx,
-                `${formatNumber(s.sources)} attack ${plural(s.sources, "source", "sources")}`,
+                `${formatNumber(s.sources)} ${plural(s.sources, "attacker", "attackers")}`,
                 L.srcX,
                 titleY - 8,
                 { size: small, weight: "bold" }
@@ -950,7 +950,7 @@ const scene = (() => {
             L.attackIcons.forEach((icon) => drawAttacker(icon.x, icon.y, false));
 
             if (L.extra > 0) {
-                const label = `+${formatNumber(L.extra)} sources`;
+                const label = `+${formatNumber(L.extra)} attackers`;
                 ctx.font = `bold ${small}px ${FONT}`;
                 const w = ctx.measureText(label).width + 16;
                 roundRectPath(ctx, L.extraPos.x - w / 2, L.extraPos.y - 10, w, 20, 10);
@@ -973,7 +973,7 @@ const scene = (() => {
                 COLORS.blocked,
                 COLORS.blockedSoft,
                 "Rate limit",
-                `≤ ${formatNumber(s.limit)} req/s per source`
+                `≤ ${formatNumber(s.limit)} req/s per attacker`
             );
         } else {
             ctx.fillStyle = COLORS.white;
@@ -1369,14 +1369,14 @@ function explanationText(s, m) {
         parts.push(`Legitimate users send ${L} requests each second. There is no attacker in this scenario.`);
     } else if (s.scenario === "dos") {
         parts.push(
-            `Legitimate users send ${L} req/sec and one attacking source sends ${formatNumber(s.dosRate)} req/sec, ` +
+            `Legitimate users send ${L} req/sec and one attacker sends ${formatNumber(s.dosRate)} req/sec, ` +
             `so ${formatNumber(m.incoming)} requests arrive each second.`
         );
     } else if (s.sources === 0) {
-        parts.push(`Legitimate users send ${L} req/sec. The DDoS source count is 0, so no attack traffic is added.`);
+        parts.push(`Legitimate users send ${L} req/sec. The DDoS attacker count is 0, so no attack traffic is added.`);
     } else {
         parts.push(
-            `Legitimate users send ${L} req/sec and ${formatNumber(s.sources)} attacking ${plural(s.sources, "source sends", "sources each send")} ` +
+            `Legitimate users send ${L} req/sec and ${formatNumber(s.sources)} ${plural(s.sources, "attacker sends", "attackers each send")} ` +
             `${formatNumber(s.ratePerSource)} req/sec (${formatNumber(s.sources)} × ${formatNumber(s.ratePerSource)} = ${formatNumber(m.attackTotal)}), ` +
             `so ${formatNumber(m.incoming)} requests arrive each second.`
         );
@@ -1384,18 +1384,18 @@ function explanationText(s, m) {
 
     if (s.scenario === "ddos" && s.protection) {
         if (s.sources === 0) {
-            parts.push(`The rate-limit rule (at most ${formatNumber(s.limit)} req/sec per source) has nothing to block.`);
+            parts.push(`The rate-limit rule (at most ${formatNumber(s.limit)} req/sec per attacker) has nothing to block.`);
         } else if (m.blocked > 0) {
             parts.push(
-                `The rate-limit rule lets each source send at most ${formatNumber(s.limit)} req/sec. Each attacking source sends ` +
-                `${formatNumber(s.ratePerSource)}, so ${formatNumber(s.ratePerSource - s.limit)} per source × ${formatNumber(s.sources)} = ` +
+                `The rate-limit rule lets each attacker send at most ${formatNumber(s.limit)} req/sec. Each attacker sends ` +
+                `${formatNumber(s.ratePerSource)}, so ${formatNumber(s.ratePerSource - s.limit)} per attacker × ${formatNumber(s.sources)} = ` +
                 `${formatNumber(m.blocked)} req/sec are blocked before reaching the server, leaving ${formatNumber(m.remaining)} req/sec. ` +
-                `The rule only counts requests per source; it does not know which requests are malicious.`
+                `The rule only counts requests per attacker/client; it does not know which requests are malicious.`
             );
         } else {
             parts.push(
-                `The rate-limit rule allows up to ${formatNumber(s.limit)} req/sec per source. Each attacking source sends only ` +
-                `${formatNumber(s.ratePerSource)}, which is within the limit, so nothing is blocked. Low-rate sources look like ordinary users to this rule.`
+                `The rate-limit rule allows up to ${formatNumber(s.limit)} req/sec per attacker. Each attacker sends only ` +
+                `${formatNumber(s.ratePerSource)}, which is within the limit, so nothing is blocked. Low-rate attackers look like ordinary users to this rule.`
             );
         }
     } else if (s.scenario === "ddos" && s.sources > 0) {
@@ -1605,15 +1605,15 @@ function logSettingChanges(prev, next) {
     if (next.scenario === "dos") changed("DoS attack rate", prev.dosRate, next.dosRate);
 
     if (next.scenario === "ddos") {
-        changed("Attack sources", prev.sources, next.sources, "");
-        changed("Rate per source", prev.ratePerSource, next.ratePerSource);
+        changed("Attackers", prev.sources, next.sources, "");
+        changed("Rate per attacker", prev.ratePerSource, next.ratePerSource);
 
         if (prev.protection !== next.protection) {
             addLog(next.protection
-                ? `Protection enabled (limit ${formatNumber(next.limit)} req/sec per source).`
+                ? `Protection enabled (limit ${formatNumber(next.limit)} req/sec per attacker).`
                 : "Protection disabled.");
         } else if (next.protection) {
-            changed("Per-source limit", prev.limit, next.limit);
+            changed("Per-attacker limit", prev.limit, next.limit);
         }
     }
 }
