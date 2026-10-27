@@ -3,7 +3,7 @@ FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=5000
+    PORT=5050
 
 WORKDIR /app
 
@@ -14,6 +14,6 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY backend/ ./backend/
 COPY frontend/ ./frontend/
 
-EXPOSE 5000
+EXPOSE 5050
 
 CMD ["python", "backend/app.py"]
